@@ -1,7 +1,7 @@
 ---
 title: 'Direct Marketing Campaigns Regression Anaylsis'
 author: "Jessica Gorr"
-date: "10/24/2024"
+date: "October 24, 2024"
 output:
   html_document: 
     toc: yes
