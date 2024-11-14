@@ -1,26 +1,29 @@
 ---
-title: 'Direct Marketing Campaigns Regression Anaylsis'
+title: "Direct Marketing Campaigns Anaylsis"
 author: "Jessica Gorr"
-date: "October 24, 2024"
+date: "November 15, 2024"
 output:
-  html_document: 
-    toc: yes
+  html_document:
+    toc: true
     toc_depth: 4
-    toc_float: yes
-    number_sections: yes
-    toc_collapsed: yes
+    toc_float: true
+    number_sections: true
+    toc_collapsed: true
     code_folding: hide
-    code_download: yes
-    smooth_scroll: yes
+    code_download: true
+    smooth_scroll: true
     theme: lumen
-  pdf_document: 
-    toc: yes
+  pdf_document:
+    toc: true
     toc_depth: 4
-    fig_caption: yes
-    number_sections: yes
+    fig_caption: true
+    number_sections: true
     fig_width: 3
     fig_height: 3
-editor_options: 
+  word_document:
+    toc: true
+    toc_depth: '4'
+editor_options:
   chunk_output_type: inline
 ---
 
