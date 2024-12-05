@@ -1,0 +1,453 @@
+---
+title: "NBA Shot Anaylsis"
+author: "Jessica Gorr"
+date: "December 5, 2024"
+output:
+  word_document:
+    toc: true
+    toc_depth: '4'
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    number_sections: true
+    toc_collapsed: true
+    code_folding: hide
+    code_download: true
+    smooth_scroll: true
+    theme: lumen
+  pdf_document:
+    toc: true
+    toc_depth: 4
+    fig_caption: true
+    number_sections: true
+    fig_width: 3
+    fig_height: 3
+editor_options:
+  chunk_output_type: inline
+---
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  font-weight:bold;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: system-ui;
+    font-weight:bold;
+    color: navy;
+    text-align: left;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-weight:bold;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-weight:bold;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 16px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+# code chunk specifies whether the R code, warnings, and output
+# will be included in the output files.
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+
+if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+  
+if (!require("patchwork")) {
+   install.packages("patchwork")
+   library(patchwork)
+}
+
+if (!require("reshape2")) {
+   install.packages("reshape2")
+   library(reshape2)
+}
+
+if (!require("tinytex")) {
+   install.packages("tinytex")
+   library(tinytex)
+}
+
+
+if (!require("neuralnet")) {
+   install.packages("neuralnet")
+   library(neuralnet)
+}
+
+if (!require("rpart")) {
+   install.packages("rpart")
+   library(rpart)
+}
+
+if (!require("rpart.plot")) {
+   install.packages("rpart.plot")
+   library(rpart.plot)
+}
+
+if (!require("pROC")) {
+   install.packages("pROC")
+   library(pROC)
+}
+
+if (!require("vip")) {
+   install.packages("vip")
+   library(vip)
+}
+
+if (!require("ggfortify")) {
+   install.packages("ggfortify")
+   library(vip)
+}
+
+if (!require("dbscan")) {
+   install.packages("dbscan")
+   library(dbscan)
+}
+
+if (!require("cluster")) {
+   install.packages("cluster")
+   library(cluster)
+}
+
+if (!require("factoextra")) {
+   install.packages("factoextra")
+   library(factoextra)
+}
+knitr::opts_chunk$set(echo = TRUE, # include code chunk in the
+ # output file
+ warnings = FALSE, # sometimes, you code may
+ # produce warning messages,
+# you can choose to include
+# the warning messages in
+ # the output file.
+ results = TRUE, # you can also decide whether
+ # to include the output
+# in the output file.
+ message = FALSE
+)  
+```
+
+
+\
+
+# Introduction
+
+The data is related player shot statistics from NBA.com which attempts to fully describe the kinds of shots players take and the way they end up making their points in games. The dataset includes every player who logged a minute of gameplay for every season from 2013-2014 through 208-2019. The exact columns are below with a few sample rows of data:
+
+1 - year : nba season 
+
+2 - player : Player name (string)
+
+3 - team : (categorical): team abbrevaited name
+  
+4 - Age (numeric): age in years
+
+5 - GP (numeric): numer of games played
+
+6 - W: (numeric) Number of wins
+
+7 - L:(numeric) number of losses
+
+8 - Min:(numeric) number of minutes played
+
+9 - PCT_FGA_2PT: (numeric): Percentage of field goal attempts that were 2 pts
+
+10 - PCT_FGA_3PT: (numberic)Percentage of field goal attempts that were 3 pts.
+
+
+A database of players' points and field goal attempts from each season between 2013 and 2019.
+
+The goal in this project is to perform PCA and clustering on our data. We would also like to detect outliers via local outlier factor (LOF) by creating a binary variable from a categorical response above.
+
+
+
+
+```{r, warning=FALSE}
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+
+#Load the sample data
+nba = read.csv("https://jessgorr01.github.io/STA551/proj4/nba_shot_types.csv")
+
+east_teams <- c("BOS", "NYK", "MIA", "CHI", "TOR", "PHI", "MIL", "IND", "CLE", "DET", "ORL", "WAS", "ATL", "CHA", "BRO")
+west_teams <- c("LAL", "GSW", "LAC", "PHX", "SAS", "DEN", "UTA", "POR", "OKC", "MIN", "DAL", "MEM", "NOP", "SAC")
+
+nba <- nba %>%
+  mutate(conference = case_when(
+    TEAM %in% east_teams ~ 0,  # East Conference
+    TEAM %in% west_teams ~ 1   # West Conference
+  ))
+
+```
+
+
+# EDA and Feature Engineering
+
+In oder to perfom so EDA, we must have a basic understanding of the data. A summary of the data is printed below.
+
+```{r, warning=FALSE}
+
+#Summarized descriptive statistics for all variables in the data set
+summary(nba)
+```
+
+We first want to figure out if every season worth of data is usable,because the stly of play has changed over the course of time. Maximizing the amount of data is a priority, but we also want to ensure we're studying offensive seasons from the same population.
+
+We'll first look at some histograms of the statistics we have and subset them by season. From left to right, the histograms depict: % of Field Goal Attempts That are 3PT Shots, % of Points That Come From 2PT Shots, % of Points That Come From 3PT Shots, % of Points That Come From Free Throws, % of Points That Occur In The Paint, % of 2PT Field Goals Made That Were Assisted, % of 3PT Field Goals Made That Were Asisted, and % of Total Field Goals Made That were Assisted..
+
+```{r, warning=FALSE}
+nba %>% select(1:3, 10:11, 13, 15, 17:18, 20, 22) %>%
+  melt(c('YEAR', 'PLAYER', 'TEAM')) %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(aes(fill = variable), binwidth = 5) +
+  facet_wrap(YEAR ~ variable, nrow = length(unique(nba$YEAR))) +
+  labs(x = 'Percentage of Field Goals Attempted or Made', y = 'Number of Players (Frequency)') +
+  theme_bw() +
+  guides(fill = FALSE)
+
+```
+Here are density plots of the same statistics, once again subsetted by season:
+
+
+
+```{r, warning=FALSE}
+
+nba %>% select(1:3, 10:11, 13, 15, 17:18, 20, 22) %>%
+  melt(c('YEAR', 'PLAYER', 'TEAM')) %>%
+  ggplot(aes(x = value)) +
+  geom_density(aes(fill = variable)) +
+  facet_wrap(YEAR ~ variable, nrow = length(unique(nba$YEAR))) +
+  labs(x = 'Percentage of FGM or FGA', y = 'Relative Likelihood (Density)') +
+  theme_bw() +
+  guides(fill = FALSE)
+```
+Some of the distributions remain fairly similar year to year, such as % of 2PT FG's assisted or % of PTS in the paint. However, a few distributions, specifically the 3PT-related distributions, change somewhat noticeably, reflecting the shifting emphases of NBA offenses. THis can be seen in the 2013-2014 season.
+
+Another interesting distribution to take note of is the distribution of % of made 3PT shots that were assisted. In 2013-2014 data, there's a gradual increasing slope from 50% of made 3PT field goals assisted to 100% of made 3PT field goals assisted, compared to season 2018-2019, this increase is much steeper. This will play a significant factor in one of the clusters we identify later on in the analysis.
+
+After looking at these distributions, I reasoned that data from 2016-2017 illustrated similar offensive focuses; data from any earlier did not accurately reflect the way NBA offenses play now.
+
+# Prinicipal Component Analysis
+
+In PCA, we want to use the least amount of components possible to explain the most amount of variance. Using too few components might not accurately capture the dataset, but using too many components would overfit the data. Below is a visual of the amount of information captured by each added component:
+
+```{r, warning=FALSE}
+set.seed(07072019)
+nba.train = nba %>%
+  filter(YEAR %in% c('2016-2017', '2017-2018', '2018-2019'), GP >= 20) %>%
+  select(contains('PCT')) %>%
+  select(2, 4:10, 12, 14)
+pca = summary(prcomp(nba.train))
+t(pca$importance) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column() %>%
+  ggplot() +
+  geom_line(aes(x = factor(rowname, levels = paste('PC', seq(1, 10, 1), sep = ''), labels = seq(1, 10, 1)), y = `Cumulative Proportion`), group = 1, color = 'navyblue', size = 1.5) +
+  labs(title = 'Cumulative Proportion of Variance Explained by PCA',
+       subtitle = '3 principal components effectively explain the data',
+       x = 'Principal Component') +
+  theme(panel.background = element_rect(fill = 'white'),
+       panel.grid.major = element_line(color = 'grey50', size = .1),
+       panel.grid.minor = element_line(color = 'grey50', size = .1))
+
+```
+The table below shows the percentage of the data explained by each additional principal component:
+```{r, warning=FALSE}
+pca
+```
+Three directions explains 93% of the data, and an additional fourth direction explains an extra 3% of the data. Since the fourth component adds little to our understanding, we'll use the first three components to transform our previously 10-dimensional dataset into a 3-dimensional dataset.
+
+
+# Clustering Data
+
+We want to figure out how many distinct groups of offensive players truly exist in the NBA. We would like to use this data to perform k-means cluster. First, we need to determine how many clusters are optimal. Intuitively, we know our data should have 10 clusters. To double check, we create an elbow plot which agrees with our initial intuition but the WSS score does not level off as sharply. 
+
+
+```{r, fig.align='center', fig.width=5, fig.height=3.5, warning=FALSE}
+nba_data <- prcomp(nba.train)$rotation[,1:3]
+
+
+wss = NULL
+K = 10
+
+for (i in 1:K){
+  wss[i] = kmeans(nba.train, i, 1 )$tot.withinss
+}
+
+## elbow plot
+plot(1:K, wss, type ="b",
+          col= "blue",
+          xlab="Number of Clusters",
+          ylab = "WSS",
+          main = "Elbow Plot for Selecting Optimal Number of Clusters")
+
+```
+From the elbow graph, we can see that the optimal amount of clusters is 7. Below the clusters are plotted:
+
+```{r, warning=FALSE}
+three_directions <- prcomp(nba.train)$rotation[,1:3]
+sd_vector <- sapply(nba.train, sd)
+scaled_best_directions <- three_directions / sd_vector
+PCA_dimension_pts <- as.matrix(nba.train) %*% scaled_best_directions
+
+PCA_kmeans = kmeans(PCA_dimension_pts, 7)
+PCA_kmeans_df <- cbind(nba %>% filter(YEAR %in% c('2016-2017', '2017-2018', '2018-2019'), GP >= 20), PCA_dimension_pts, cluster = PCA_kmeans$cluster)
+ggplot(PCA_kmeans_df) +
+  geom_jitter(aes(x = PC1, y = PC2, color = factor(cluster, levels = seq(1, 7, 1)))) +
+  guides(color = guide_legend('Cluster')) +
+  theme(panel.background = element_rect(fill = 'white'),
+       panel.grid.major = element_line(color = 'grey50', size = .1),
+       panel.grid.minor = element_line(color = 'grey50', size = .1),
+       legend.key = element_rect(fill = 'white'))
+```
+
+As you can see, even without graphing our third dimension, our clustering looks pretty distinct. Below is a table of means of the original variables we inputted for each cluster of players we created:
+
+```{r, warning=FALSE}
+PCA_cluster_means <- PCA_kmeans_df %>% 
+  select_if(grepl('PCT', colnames(PCA_kmeans_df))) %>%
+  cbind(cluster = PCA_kmeans_df$cluster, .) %>%
+  group_by(cluster) %>%
+  summarise_all(mean)
+PCA_cluster_means
+```
+
+
+# Anomaly Detection
+
+We begin by creating a binary variable from our response variable, in this case we want to decided if a player is in the eastern or western nba conference. If the `TEAM` column was labeled as either east team, we label it as 0. If the player is on a western team, we label it as 1. The code for creating this variable is below:
+
+```{r, warning=FALSE}
+east_teams <- c("BOS", "NYK", "MIA", "CHI", "TOR", "PHI", "MIL", "IND", "CLE", "DET", "ORL", "WAS", "ATL", "CHA", "BRO")
+west_teams <- c("LAL", "GSW", "LAC", "PHX", "SAS", "DEN", "UTA", "POR", "OKC", "MIN", "DAL", "MEM", "NOP", "SAC")
+
+nba_teams <- nba %>%
+  mutate(conference = case_when(
+    TEAM %in% east_teams ~ 0,  # East Conference
+    TEAM %in% west_teams ~ 1   # West Conference
+  ))
+
+clean_nba <- nba_teams %>%
+  select(-where(is.character))
+
+
+lof.nba.50  <- lof(clean_nba [, c(4, 6, 7, 9,10)], minPts = 50)
+lof.nba.100  <- lof(clean_nba [, c(4, 6, 7, 9,10)], minPts = 100) 
+lof.nba.200  <- lof(clean_nba [, c(4, 6, 7, 9,10)], minPts = 200) 
+lof.nba.400  <- lof(clean_nba [, c(4, 6, 7, 9,10)], minPts = 400) 
+
+summary(lof.nba.100)
+hist(lof.nba.100[lof.nba.100 < 5], breaks = 50, main = "LOF Distribution")
+
+```
+ We can also sketch an ROC to assess the global performance in terms of catching rate below:
+
+```{r, warning=FALSE}
+  conference = as.character(clean_nba$conference)
+
+  ##
+ ROCobj.lof.50 <- roc(conference, lof.nba.50, levels=c("1", "0"), direction = ">")
+  ROCobj.lof.100 <- roc(conference, lof.nba.100, levels=c("1", "0"), direction = ">")
+  ROCobj.lof.200 <- roc(conference, lof.nba.200, levels=c("1", "0"), direction = ">")
+  ROCobj.lof.400 <- roc(conference, lof.nba.400, levels=c("1", "0"), direction = ">")
+  ##
+  sen.LOF.50 = ROCobj.lof.50$sensitivities
+  fnr.LOF.50 = 1 - ROCobj.lof.50$specificities
+  ##
+  sen.LOF.100 = ROCobj.lof.100$sensitivities
+  fnr.LOF.100 = 1 - ROCobj.lof.100$specificities
+  ##
+  sen.LOF.200 = ROCobj.lof.200$sensitivities
+  fnr.LOF.200 = 1 - ROCobj.lof.200$specificities
+  ##
+  sen.LOF.400 = ROCobj.lof.400$sensitivities
+  fnr.LOF.400 = 1 - ROCobj.lof.400$specificities
+par(type="s")
+colors = c("#8B4500", "#00008B", "#8B008B", "#055d03")
+plot(fnr.LOF.50, sen.LOF.50, type = "l", lwd = 2, col = colors[1],
+     xlim = c(0,1),
+     ylim = c(0,1),
+     xlab = "1 - specificity",
+     ylab = "sensitivity",
+     main = "ROC Curves of LOF Detection Comparison")
+lines(fnr.LOF.100, sen.LOF.100, lwd = 2, lty = 2, col = colors[2])
+lines(fnr.LOF.200, sen.LOF.200, lwd = 1, col = colors[3])
+lines(fnr.LOF.400, sen.LOF.400, lwd = 1, col = colors[4])
+
+segments(0,0,1,1, lwd =1, col = "red", lty = 2)
+legend("topleft", c("LOF.50", "LOG.100", "LOF.200", "LOF.400"), 
+       col=colors, lwd=c(2,2,1,1,1),
+       lty=c(1,2,1,1,2), bty = "n", cex = 0.7)
+
+##
+AUC.50 = ROCobj.lof.50$auc
+AUC.100 = ROCobj.lof.100$auc
+AUC.200 = ROCobj.lof.200$auc
+AUC.400 = ROCobj.lof.400$auc
+text(0.87, 0.25, paste("AUC.50 = ", round(AUC.50,4)), col=colors[1], cex = 0.7, adj = 1)
+text(0.87, 0.20, paste("AUC.100 = ", round(AUC.100,4)), col=colors[2], cex = 0.7, adj = 1)
+text(0.87, 0.15, paste("AUC.200 = ", round(AUC.200,4)), col=colors[3], cex = 0.7, adj = 1)
+text(0.87, 0.10, paste("AUC.400 = ", round(AUC.400,4)), col=colors[4], cex = 0.7, adj = 1)
+
+```
+
+From the output, we can see that the smaller values have a better area under the curve but with dimishing returns. Thus, in our case, we would choose $k=50$ as our value.
