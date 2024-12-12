@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Cali Housing Market</title>
+    <meta charset="utf-8" />
+    <meta name="author" content=" Jessica Gorr " />
+    <script src="GorrSLR_files/header-attrs/header-attrs.js"></script>
+    <link href="GorrSLR_files/remark-css/default.css" rel="stylesheet" />
+    <link href="GorrSLR_files/remark-css/default-fonts.css" rel="stylesheet" />
+    <script src="GorrSLR_files/htmlwidgets/htmlwidgets.js"></script>
+    <link href="GorrSLR_files/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+    <script src="GorrSLR_files/datatables-binding/datatables.js"></script>
+    <script src="GorrSLR_files/jquery/jquery-3.6.0.min.js"></script>
+    <link href="GorrSLR_files/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <link href="GorrSLR_files/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+    <script src="GorrSLR_files/dt-core/js/jquery.dataTables.min.js"></script>
+    <link href="GorrSLR_files/crosstalk/css/crosstalk.min.css" rel="stylesheet" />
+    <script src="GorrSLR_files/crosstalk/js/crosstalk.min.js"></script>
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# <font size = 7 color = "white">Cali Housing Market</font>
+]
+.subtitle[
+## <img src="img/logo_1.png" width=100 height=100><img src="img/RMarkdown-logo.png" width=90 height=100> <img src="img/xaringan-logo.png" width=90 height=100>
+]
+.author[
+### <font size = 5 color = "white"> Jessica Gorr </font>
+]
+.institute[
+### <font size = 6 color = "white">West Chester University of Pennsylvania</font><br>
+]
+.date[
+### <font color = "white" size =4> Prepared for<br> </font> <br> <font color = "gold" size = 6> STA533: HTML Presentation </font> <br> <br> <font color = "white" size = 3> Slides available at: <a href="https://rpubs.com/jgorr01" class="uri">https://rpubs.com/jgorr01</a> AND <a href="https://github.com/jessgorr01/jGorrCV" class="uri">https://github.com/jessgorr01/jGorrCV</a></font>
+]
+
+---
+
+
+
+
+
+
+class:inverse4, top
+
+&lt;h1 align="center"&gt; Table of Contents&lt;/h1&gt;
+&lt;BR&gt;
+
+.pull-left[
+- Data background
+   - searchable table
+- Model Building
+   - R code
+- SLR Assumptions
+   - Normality
+   - Independence
+   - Homoscedasticity
+   -Linearity
+- Analysis
+   - Model Fit
+   - written Analysis
+- Conclusion   
+]
+
+---
+
+&lt;h1 align = "center"&gt;CA Housing Price Data &lt;font color="orange"&gt;Search Table&lt;/font&gt;&lt;/h1&gt;
+&lt;BR&gt;
+<div id="htmlwidget-0f07d9c49731bf12b1a5" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-0f07d9c49731bf12b1a5">{"x":{"filter":"none","vertical":false,"data":[[-122.23,-122.22,-122.24,-122.25,-122.25,-122.25],[37.88,37.86,37.85,37.85,37.85,37.85],[41,21,52,52,52,52],[880,7099,1467,1274,1627,919],[129,1106,190,235,280,213],[322,2401,496,558,565,413],[126,1138,177,219,259,193],[8.3252,8.3014,7.2574,5.6431,3.8462,4.0368],[452600,358500,352100,341300,342200,269700],["NEAR BAY","NEAR BAY","NEAR BAY","NEAR BAY","NEAR BAY","NEAR BAY"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>longitude<\/th>\n      <th>latitude<\/th>\n      <th>housing_median_age<\/th>\n      <th>total_rooms<\/th>\n      <th>total_bedrooms<\/th>\n      <th>population<\/th>\n      <th>households<\/th>\n      <th>median_income<\/th>\n      <th>median_house_value<\/th>\n      <th>ocean_proximity<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[0,1,2,3,4,5,6,7,8]},{"name":"longitude","targets":0},{"name":"latitude","targets":1},{"name":"housing_median_age","targets":2},{"name":"total_rooms","targets":3},{"name":"total_bedrooms","targets":4},{"name":"population","targets":5},{"name":"households","targets":6},{"name":"median_income","targets":7},{"name":"median_house_value","targets":8},{"name":"ocean_proximity","targets":9}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+---
+&lt;h1 align = "center"&gt;Key &lt;font color="orange"&gt;Variables&lt;/font&gt;&lt;/h1&gt;
+&lt;BR&gt;
+.pull-left[
+- Explanatory
+   - median_income
+   
+   
+   &lt;br&gt;&lt;br&gt;
+   &lt;center&gt;
+   &lt;img src="img/money.gif" width=300 height=200&gt;
+   &lt;/center&gt;
+]
+.pull-right[
+- Response
+  - median_house_value
+  
+  
+  &lt;br&gt;&lt;br&gt;
+  &lt;center&gt;
+  &lt;img src="img/housing.gif" width=300 height=200&gt;
+  &lt;/center&gt;
+]
+
+---
+name:model building
+
+&lt;h1 align="center"&gt; Model &lt;font color="orange"&gt;Building and Formula&lt;/font&gt;&lt;/h1&gt;
+&lt;br&gt;
+
+```r
+house &lt;- read.csv("ca-housing-price.csv")
+mod = lm(formula = median_house_value ~ median_income, data = house)
+```
+&lt;br&gt;
+&lt;center&gt;
+`\(y=\beta_0+\beta_1x_1+\epsilon\)`, where `\(\epsilon \sim N(0, \sigma^2)\)`.
+&lt;br&gt;
+`\(MedianHouseValue=\beta_0+\beta_1*MedianIncome+\epsilon\)`.&lt;/center&gt;
+---
+
+&lt;h1 align="center"&gt; Model &lt;font color="orange"&gt;Summary and CV&lt;/font&gt;&lt;/h1&gt;
+
+```
+## 
+## Call:
+## lm(formula = median_house_value ~ median_income, data = house)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -540697  -55950  -16979   36978  434023 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)    45085.6     1322.9   34.08   &lt;2e-16 ***
+## median_income  41793.8      306.8  136.22   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 83740 on 20638 degrees of freedom
+## Multiple R-squared:  0.4734,	Adjusted R-squared:  0.4734 
+## F-statistic: 1.856e+04 on 1 and 20638 DF,  p-value: &lt; 2.2e-16
+```
+
+```
+## [1] 40.48116
+```
+
+```
+##                  2.5 %   97.5 %
+## median_income 41192.49 42395.21
+```
+---
+&lt;h1 align="center"&gt; Simple Linear Regression Assumptions - &lt;font color="orange"&gt;Linearity&lt;/font&gt;&lt;/h1&gt;
+&lt;img src="GorrSLR_files/figure-html/unnamed-chunk-4-1.png" width="600px" style="display: block; margin: auto;" /&gt;
+---
+&lt;h1 align="center"&gt; Assumptions Continued - &lt;font color="orange"&gt;Normality&lt;/font&gt;&lt;/h1&gt;
+&lt;img src="GorrSLR_files/figure-html/unnamed-chunk-5-1.png" width="600px" /&gt;
+---
+&lt;h1 align="center"&gt; Cont. - &lt;font color="orange"&gt;Homoscedasticity &amp; Independence&lt;/font&gt;&lt;/h1&gt;
+&lt;img src="GorrSLR_files/figure-html/unnamed-chunk-6-1.png" width="600px" /&gt;
+---
+&lt;h1 align="center"&gt;&lt;font color="orange"&gt;Conclusion&lt;/font&gt;&lt;/h1&gt;
+   &lt;center&gt;
+   &lt;br&gt;&lt;br&gt;
+   &lt;img src="img/market.jpg" width=300 height=200&gt;
+   &lt;/center&gt;
+   &lt;br&gt;&lt;br&gt;&lt;br&gt;
+  &lt;h1 align="center"&gt;Thank You!&lt;/h1&gt;
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create();
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
