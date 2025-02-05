@@ -1,0 +1,441 @@
+---
+title: 'Exploring Credit Risk for Lenders and Borrowers'
+author: " Jessica Gorr"
+date: "2/5/2025"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    number_sections: no
+    toc_collapsed: yes
+    code_folding: hide
+    code_download: yes
+    smooth_scroll: yes
+    theme: lumen
+  word_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    keep_md: yes
+  pdf_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    number_sections: no
+    fig_width: 3
+    fig_height: 3
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 22px;
+  font-weight: bold;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 18px;
+  font-weight: bold;
+  font-family: system-ui;
+  color: navy;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+  font-weight: bold;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 18px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: center;
+    font-weight: bold;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 16px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+    font-weight: bold;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 14px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 12px;
+    font-family: "Gill Sans", sans-serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+# code chunk specifies whether the R code, warnings, and output
+# will be included in the output files.
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+
+if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+  
+if (!require("patchwork")) {
+   install.packages("patchwork")
+   library(patchwork)
+}
+
+if (!require("reshape2")) {
+   install.packages("reshape2")
+   library(reshape2)
+}
+
+if (!require("tinytex")) {
+   install.packages("tinytex")
+   library(tinytex)
+}
+
+
+if (!require("neuralnet")) {
+   install.packages("neuralnet")
+   library(neuralnet)
+}
+
+if (!require("rpart")) {
+   install.packages("rpart")
+   library(rpart)
+}
+
+if (!require("rpart.plot")) {
+   install.packages("rpart.plot")
+   library(rpart.plot)
+}
+
+if (!require("pROC")) {
+   install.packages("pROC")
+   library(pROC)
+}
+
+if (!require("vip")) {
+   install.packages("vip")
+   library(vip)
+}
+
+if (!require("ggfortify")) {
+   install.packages("ggfortify")
+   library(vip)
+}
+
+if (!require("dbscan")) {
+   install.packages("dbscan")
+   library(dbscan)
+}
+if (!require("vcd")){
+  install.packages("vcd")
+  library(vcd)
+}
+
+if (!require("cluster")) {
+   install.packages("cluster")
+   library(cluster)
+}
+
+if (!require("factoextra")) {
+   install.packages("factoextra")
+   library(factoextra)
+}
+knitr::opts_chunk$set(echo = TRUE, # include code chunk in the
+ # output file
+ warnings = FALSE, # sometimes, you code may
+ # produce warning messages,
+# you can choose to include
+# the warning messages in
+ # the output file.
+ results = TRUE, # you can also decide whether
+ # to include the output
+# in the output file.
+ message = FALSE
+)  
+```
+
+
+
+## 2. Introduction
+
+
+The purpose of this analysis is to look at some insights and interesting features of credit card risks for both the lender and borrowers. There have been no methods that describe how or where the the data was collected, so we will not take into account on how countries laws are applicable to lenders.  The target variable is loan_status, which describes if a borrower has a defaulted loan.
+The dataset is composed by 32581 rows (observations) and 12 columns (variables), which are described below:
+  
+
+person_age (numerical): is the age of the person at the time of the loan.
+
+person_income (numerical): is the yearly income of the person at the time of the loan.
+
+person_home_ownership (categorical): is the type of ownership of the home.
+
+person_emp_length (numerical): is the amount of time in years that person is employed.
+
+loan_intent (categorical): is the aim of the loan.
+
+loan_grade (categorical): is a classification system that involves assigning a quality score to a loan based on a borrower's credit history, quality of the collateral, and the likelihood of repayment of the principal and interest.
+
+loan_amnt (numerical): is the dimension of the loan taken.
+
+loan_int_rate (numerical): is the interest paid for the loan.
+
+loan_status (binary): is a dummy variable where 1 is default, 0 is not default.
+
+loan_percent_income (numerical): is the ratio between the loan taken and the annual income.
+
+cb_person_default_on_file (binary): answers whether the person has defaulted before.
+
+cb_person_cred_hist_length (numerical): represents the number of years of personal history since the first loan taken from that person.
+
+A public link to the data can be found here: https://www.kaggle.com/datasets/laotse/credit-risk-dataset
+
+
+The tasks performed in this analysis are looking at different distribution of individual features and exploring relationships between features.Through this exploratory analysis all important observations, implications, and any actions performed will be explained. A quick example of the data is found below.
+
+```{r, warning=FALSE}
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+
+#Load the sample data
+credit_risk_dataset = read.csv("https://jessgorr01.github.io/STA551/sta552/project1/credit_risk_dataset.csv")
+
+
+head(credit_risk_dataset)
+```
+
+## 3. Distribution of Individual Features
+
+The first step in the analysis is looking at all the individual features. In order to perform this action, all of the variables the the dataset will be converted to factors. this can be seen in the code chunk below. Following this, all missing data will be identified and a summary will be given to get a general overview of the credit risk data. Then visuals will be given to looking at the distributions of individual factors, and what insights can be discovered for future predicting and analysis.
+
+### Cleaning and first looks
+
+Below is a chunk to turn all the variables into factors.
+```{r, warning=FALSE}
+
+#Transforming variables to factors
+credit_risk_dataset$loan_status <- as.factor(credit_risk_dataset$loan_status)
+credit_risk_dataset$person_home_ownership <- as.factor(credit_risk_dataset$person_home_ownership)
+credit_risk_dataset$loan_intent <- as.factor(credit_risk_dataset$loan_intent)
+credit_risk_dataset$loan_grade <- as.factor(credit_risk_dataset$loan_grade)
+credit_risk_dataset$cb_person_default_on_file <- as.factor(credit_risk_dataset$cb_person_default_on_file)
+
+glimpse(credit_risk_dataset) # more ordered
+#str(credit_risk_dataset)
+```
+The summary of our data, including missing values is below:
+```{r, warning=FALSE}
+summary(credit_risk_dataset)
+```
+Some quick insights that can be pulled from the summary of the data are:
+
+  1.person_age has a strange result: the max value is 144 which is unlikely to be true.
+  2.person_emp_length has 895 NAs
+  3.person_emp_length has a max value of 123 which is not possible.
+  4.loan_interest_rate has 3116 NAs
+  5.according to the data (loan_status), 21.82% (7108/32581) of people have defaulted, value that is quite high.
+  
+From these insights outliers can be identified. A plot below will focus one two we have potentally found above in our summary. 
+```{r, warning=FALSE}
+plot(credit_risk_dataset$person_age, credit_risk_dataset$person_emp_length,  main = "Scatterplot between age and employment length")
+```
+Here it can be clearly seen that there are some issues on data by looking at outliers. It is impossible that two 20 years old have over 120 years of experience. Now illogical outliers must be removed and cleaned from the data before starting exploratory phase. This can be seen below:
+
+```{r, warning=FALSE}
+credit_risk <- credit_risk_dataset %>%
+    filter(!is.na(person_emp_length)) %>%
+    filter(!is.na(loan_int_rate)) %>%
+    filter(person_age < 90) %>%
+    filter(person_emp_length < 100)
+
+summary(credit_risk)
+```
+### Univarite Analysis
+
+Now that the dataset is clean, we can start to take a look at individual features. We will look at the distributions of numerical features using density plots. When looking at the categorical features, a bar graph will be used. 
+
+All of our numerical features distributions can be seen below:
+
+```{r fig.align='center'}
+# histogram showing the distribution of the duration variable
+plot(density(credit_risk_dataset$person_age), main = "Density Plot of Age", 
+     xlab = "Age", ylab = "Density", col = "blue", lwd = 2)
+plot(density(credit_risk_dataset$person_income), main = "Density Plot of Income", 
+     xlab = "Income", ylab = "Density", col = "blue", lwd = 2)
+plot(density(credit_risk_dataset$person_emp_length, na.rm = TRUE), main = "Density Plot of Employment Length", 
+     xlab = "Employment Length (Years)", ylab = "Density", col = "blue", lwd = 2)
+plot(density(credit_risk_dataset$loan_amnt, na.rm = TRUE), main = "Density Plot of Loan Amounts", 
+     xlab = "Loan Amount", ylab = "Density", col = "blue", lwd = 2)
+plot(density(credit_risk_dataset$loan_int_rate, na.rm = TRUE), main = "Density Plot of Loan Interest Rates", 
+     xlab = "Loan Interest Rate", ylab = "Density", col = "blue", lwd = 2)
+plot(density(credit_risk_dataset$loan_percent_income, na.rm = TRUE), main = "Density Plot of Loan Percentage of Income", 
+     xlab = "Percentage of Income", ylab = "Density", col = "blue", lwd = 2)
+plot(density(credit_risk_dataset$cb_person_cred_hist_length, na.rm = TRUE), main = "Density Plot of Credit History in Years", 
+     xlab = "Credit History (Years)", ylab = "Density", col = "blue", lwd = 2)
+```
+From the density plots a few insights can be made:
+  1. Looking at credit history, there are three distinct groups: 0-5 years, 5-10 years, and 11+ years. Therefore it might be useful to combine into one categorical variable.
+  2. Loan amounts vary, but the vast majority's less than 10,000 dollars.
+  3.Almost all employment length is less than 20 years, therefore it might be useful to break that down into categories for stages of one's career.
+  
+Now let's look at all the categorical variables below:
+```{r fig.align='center'}
+
+ggplot(credit_risk_dataset, aes(x = loan_status)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Status") +
+  xlab("Loan Status") +
+  ylab("Frequency") +
+  theme_minimal()
+
+
+ggplot(credit_risk_dataset, aes(x = person_home_ownership)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Home Ownership") +
+  xlab("Home Ownership") +
+  ylab("Frequency") +
+  theme_minimal()
+
+ggplot(credit_risk_dataset, aes(x = loan_intent)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Intent") +
+  xlab("Loan Intent") +
+  ylab("Frequency") +
+  theme_minimal()
+
+ggplot(credit_risk_dataset, aes(x = loan_grade)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Grade") +
+  xlab("Loan Grade") +
+  ylab("Frequency") +
+  theme_minimal()
+
+ggplot(credit_risk_dataset, aes(x = cb_person_default_on_file)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Defaults") +
+  xlab("Loan Defaults on File") +
+  ylab("Frequency") +
+  theme_minimal()
+```
+Looking at the bar plots of the categorical variables some insights are:
+  1. Loan Defaults and Loan Status are teh same, so we can discard Loan Defaults to get rid of redundancy.
+  2.Loan Grade has a distinct grouping with A-B, C-D, and E-G. These can be combined into three groups.
+  3. Loan intent seems to have some groups that can be combined. These can be categorized as necessity/want. An example of this could be venture/personal vs medical.
+  
+## 4. Relationship between Features
+
+Now that we have looking the the features individually, we can do some analysis to find insights between the relationships with other features. This insights can provide clarity on what future analysis should focus the attention on. This exploratory analysis will perform three relationship between:
+  1. two numerical variables
+  2. two categorical variables
+  3. one numerical and one categorical variable.
+  
+All insights will be explain through visuals and text.
+
+### Bivariate Analysis
+
+First we will explore the relationship between two numerical variables, age and the loan percentage of their income.
+
+```{r, fig.align='center', warning=FALSE}
+plot1 <- ggplot(credit_risk_dataset, aes(x = person_age, y = loan_percent_income)) +
+  geom_point() +  
+  ylab("Income") +  
+  xlab("Age") +  
+  scale_x_continuous(limits = c(0, 100)) +  
+  theme_minimal()  
+
+
+
+plot1
+```
+From this scatterplot, we can clearly see the is a negative correlation between age and loan percentage to income. Younger people tend to have a higher loan percentage of their income compared to older people.
+
+Now looking at two categorical variables we can analyze them visually through a stacked bar plot. Here we will look at the relationship between loan intent and loan grade.
+
+
+```{r, fig.align='center', warning=FALSE}
+
+df_percent <- credit_risk_dataset %>%
+  group_by(loan_grade, loan_intent) %>%
+  summarise(count = n()) %>%
+  group_by(loan_grade) %>%
+  mutate(percent = count / sum(count) * 100)
+
+# Create the stacked bar plot with percentages
+ggplot(df_percent, aes(x = loan_grade, y = percent, fill = loan_intent)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Stacked Bar Plot of Loan Grade by Loan Intent (Percent)",
+       x = "Loan Grade",
+       y = "Percentage") +
+  scale_fill_manual(values = c("red", "blue", "purple", "yellow", "orange", "pink")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") 
+
+
+```
+
+From the stacked bar chart and the percentages, we can see thal all intent and loan grades are very similar and there does not seem to be a significant difference. 
+
+
+Finally we will explare the relationship betwee one numerical variable, loan interest rate, with a categoracal veriable, home ownership. This will be explored using boxplots.
+
+```{r, fig.align='center', warning=FALSE}
+ggplot(credit_risk_dataset, aes(x = loan_int_rate, y = person_home_ownership)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of Interest Rates by Homeownership",
+       x = "Interest Rate",
+       y = "Homeownership") +
+  theme_minimal()
+```
+
+Looking at the different plots, we can see they are all similar except for the "Other" category for Homeownership. This indicates from my persceptive to target younger adults who might live at home. These individuals might be using loans with a low income, which can cause higher interest rates.
+
+## Conclusion
+
+This analysis explored a dataset related to different variables that can explain credit risk for lenders and borrowers. In this analysis we have found missing observations, did univariate analysis, and performed Bivariate analysis. 
+
+
+
+
+
+
+
+
+
