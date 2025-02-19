@@ -1,0 +1,581 @@
+---
+title: 'Exploring Credit Risk for Lenders and Borrowers'
+author: " Jessica Gorr"
+date: "2/5/2025"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    number_sections: no
+    toc_collapsed: yes
+    code_folding: hide
+    code_download: yes
+    smooth_scroll: yes
+    theme: lumen
+  word_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    keep_md: yes
+  pdf_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    number_sections: no
+    fig_width: 3
+    fig_height: 3
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 22px;
+  font-weight: bold;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 18px;
+  font-weight: bold;
+  font-family: system-ui;
+  color: navy;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+  font-weight: bold;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 18px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: center;
+    font-weight: bold;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 16px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+    font-weight: bold;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 14px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 12px;
+    font-family: "Gill Sans", sans-serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+# code chunk specifies whether the R code, warnings, and output
+# will be included in the output files.
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+
+if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+  
+if (!require("patchwork")) {
+   install.packages("patchwork")
+   library(patchwork)
+}
+
+if (!require("reshape2")) {
+   install.packages("reshape2")
+   library(reshape2)
+}
+
+if (!require("tinytex")) {
+   install.packages("tinytex")
+   library(tinytex)
+}
+
+
+if (!require("neuralnet")) {
+   install.packages("neuralnet")
+   library(neuralnet)
+}
+
+if (!require("rpart")) {
+   install.packages("rpart")
+   library(rpart)
+}
+
+if (!require("rpart.plot")) {
+   install.packages("rpart.plot")
+   library(rpart.plot)
+}
+
+if (!require("pROC")) {
+   install.packages("pROC")
+   library(pROC)
+}
+
+if (!require("vip")) {
+   install.packages("vip")
+   library(vip)
+}
+
+if (!require("ggfortify")) {
+   install.packages("ggfortify")
+   library(vip)
+}
+
+if (!require("dbscan")) {
+   install.packages("dbscan")
+   library(dbscan)
+}
+if (!require("vcd")){
+  install.packages("vcd")
+  library(vcd)
+}
+
+if (!require("cluster")) {
+   install.packages("cluster")
+   library(cluster)
+}
+
+if (!require("factoextra")) {
+   install.packages("factoextra")
+   library(factoextra)
+}
+knitr::opts_chunk$set(echo = TRUE, # include code chunk in the
+ # output file
+ warnings = FALSE, # sometimes, you code may
+ # produce warning messages,
+# you can choose to include
+# the warning messages in
+ # the output file.
+ results = TRUE, # you can also decide whether
+ # to include the output
+# in the output file.
+ message = FALSE,
+ comment = NA
+)  
+```
+
+
+
+## 1. Introduction
+
+
+The purpose of this analysis is to look at some insights and interesting features of credit card risks for both the lender and borrowers. There have been no methods that describe how or where the the data was collected, so we will not take into account on how countries laws are applicable to lenders.  The target variable is loan_status, which describes if a borrower has a defaulted loan.
+The dataset is composed by 32581 rows (observations) and 12 columns (variables), which are described below:
+  
+
+person_age (numerical): is the age of the person at the time of the loan.
+
+person_income (numerical): is the yearly income of the person at the time of the loan.
+
+person_home_ownership (categorical): is the type of ownership of the home.
+
+person_emp_length (numerical): is the amount of time in years that person is employed.
+
+loan_intent (categorical): is the aim of the loan.
+
+loan_grade (categorical): is a classification system that involves assigning a quality score to a loan based on a borrower's credit history, quality of the collateral, and the likelihood of repayment of the principal and interest.
+
+loan_amnt (numerical): is the dimension of the loan taken.
+
+loan_int_rate (numerical): is the interest paid for the loan.
+
+loan_status (binary): is a dummy variable where 1 is default, 0 is not default.
+
+loan_percent_income (numerical): is the ratio between the loan taken and the annual income.
+
+cb_person_default_on_file (binary): answers whether the person has defaulted before.
+
+cb_person_cred_hist_length (numerical): represents the number of years of personal history since the first loan taken from that person.
+
+A public link to the data can be found here: https://www.kaggle.com/datasets/laotse/credit-risk-dataset
+
+
+In this assignment, we are looking looking at missing values within the data. Missing values are a common issue in data. These missing values can can be from errors in data entry, or participants skipping survey questions. Missing data can introduce bias, reduce statistical power, and complicate the analysis, making imperative to address these issues before making a model.
+
+There are different types of missing data. One type is Missing Completely at Random (MCAR), where missingness is unrelated to any other data. Another is Missing at Random (MAR), where missingness is related to observed data but not the missing data itself. Finally Missing Not at Random (MNAR), where the missingness depends on unobserved factors, like respondents purposely not responding to certain questions. Understanding the nature of missingness helps in choosing an appropriate imputation method.
+
+There are several imputation techniques to handle missing values. Mean, median, or mode imputation replaces missing values with the average, median, or most frequent value of a column. This is the simplest method and it can distort the data distribution. Regression imputation predicts missing values using other the variables through a regression model. This preserves relationships between variables. K-nearest neighbors (KNN) imputation uses the values of similar observations to fill in the missing data. Multiple imputation generates several plausible datasets by imputing missing values multiple times, reducing bias and uncertainty.
+
+In this assignment we will look use the techniques of replacing with the mode for categorical variables, regression based imputation fro numerical variables, and finally a multiple imputation method. Once all the data prepping is finish, we will start to perform feature engineering for future analysis.We will address features and their distributions by correcting skewness and Normalizing the features.
+
+Additionally, we will select features using model based criteria using linear and logistical regression. The criteria will be using the R2, AIC, and ROC for selecting viable features.  Domain knowledge will also be used to variables filter the variables. Finally, we will regroup and discretion categorical and numerical continuous variables.
+
+```{r, warning=FALSE}
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+
+#Load the sample data
+credit_risk_dataset = read.csv("https://jessgorr01.github.io/STA551/sta552/project1/credit_risk_dataset.csv")
+
+
+head(credit_risk_dataset)
+```
+
+## 2. Distribution of Individual Features
+
+
+
+### Cleaning and first looks
+
+Below is a chunk to turn all the variables into factors.
+```{r, warning=FALSE}
+
+#Transforming variables to factors
+credit_risk_dataset$loan_status <- as.factor(credit_risk_dataset$loan_status)
+credit_risk_dataset$person_home_ownership <- as.factor(credit_risk_dataset$person_home_ownership)
+credit_risk_dataset$loan_intent <- as.factor(credit_risk_dataset$loan_intent)
+credit_risk_dataset$loan_grade <- as.factor(credit_risk_dataset$loan_grade)
+credit_risk_dataset$cb_person_default_on_file <- as.factor(credit_risk_dataset$cb_person_default_on_file)
+
+glimpse(credit_risk_dataset) # more ordered
+#str(credit_risk_dataset)
+```
+The summary of our data, including missing values is below:
+```{r, warning=FALSE}
+summary(credit_risk_dataset)
+colSums(is.na(credit_risk_dataset))  # Number of NAs in each column
+```
+A quick look at the data we can see that:
+
+  1.person_emp_length has 895 NAs
+  2.loan_int_rate has 3116 NAS
+ 
+  
+### Mode Imputation
+
+Mode Imputation is a technique used to handle missing values in categorical variables by replacing them with the most frequently occurring value (mode) in that column. This method ensures that missing values are filled with a plausible category rather than dropping data points, preserving the dataset’s original structure.
+
+Now that the dataset is clean, we can start to impute some of the missing values. The fist task is to replace NA categorical values with the mode. This can be seen below:
+
+```{r, warning=FALSE}
+# Function to replace NA with mode
+replace_na_with_mode <- function(x) {
+  mode_value <- names(sort(table(x), decreasing = TRUE))[1]  # Find mode
+  x[is.na(x)] <- mode_value  # Replace NA with mode
+  return(x)
+}
+
+# Apply function to categorical columns in the credit_risk_dataset
+credit_risk_mode <- credit_risk_dataset %>%
+  mutate(across(where(is.factor), replace_na_with_mode))
+
+# Check if missing values are replaced
+glimpse(credit_risk_mode)
+colSums(is.na(credit_risk_mode))  # Number of NAs in each column
+```
+
+Looking at the dataset, we can see that there are no categorical missing values. Some implications of mode imputation is that it ensures data completeness, but it could introduce bias and reduce variability. For small missingness, it’s a simple and convenient solution, but for larger missing data or complex datasets, more advanced imputation methods like regression based and multiple imputation method should be used.
+
+## 3. Regression Based Impuation Methods for Numerical Features
+
+Regression-based imputation is a method where missing numerical variable values are predicted using a regression model trained on complete cases. This ensures that missing values are filled in a way that maintains relationships between variables. If the varibles do not have complete cases, some missing values will be left. 
+
+Below is the code for creating two regression models, for person_emp_length and loan_interest rate. 
+
+```{r, warning=FALSE}
+credit_risk_regression <- credit_risk_dataset
+
+# Build a linear regression model using complete cases
+emp_model <- lm(person_emp_length ~ person_age + person_income + loan_amnt + loan_int_rate, 
+                data = credit_risk_regression, na.action = na.omit)
+
+# Predict missing values
+missing_emp_rows <- is.na(credit_risk_regression$person_emp_length)
+credit_risk_regression$person_emp_length[missing_emp_rows] <- predict(emp_model, 
+    newdata = credit_risk_regression[missing_emp_rows,])
+
+
+# Build a regression model using complete cases
+int_rate_model <- lm(loan_int_rate ~ person_age + person_income + loan_amnt + loan_percent_income, 
+                     data = credit_risk_regression, na.action = na.omit)
+
+# Predict missing values
+missing_int_rate_rows <- is.na(credit_risk_regression$loan_int_rate)
+credit_risk_regression$loan_int_rate[missing_int_rate_rows] <- predict(int_rate_model, 
+    newdata = credit_risk_regression[missing_int_rate_rows,])
+
+colSums(is.na(credit_risk_dataset))
+colSums(is.na(credit_risk_regression))  # Check if missing values are replaced
+```
+
+From our output, we can see that all missing values for loan_interest_rate were imputed, but not all for person_emp_length. There are 68 remaining. This could be due to not having enough information, and outliers.
+
+## 4. Multible Imputation
+
+Multiple Regression-based imputation is a method where missing numerical values are predicted using regression models based on other available features. This imputation method helps maintain relationships between variables and provides more accurate imputations compared to mode imputation for categorical variables and median/mean for numerical variables.
+
+
+Below we will use the mice() library to do a regression based imputation. There are two variable with multiple missing values, person_emp_length, which is how long someone is employed, and loan_int_rate, which is the interest rate of the loan. 
+
+```{r, warning=FALSE}
+# Load necessary package
+library(mice)
+
+# Select only numerical columns for regression imputation
+num_vars <- c("person_emp_length", "loan_int_rate")
+
+# Perform regression-based imputation
+imputed_data <- mice(credit_risk_dataset, method = "norm.predict", m = 1)
+
+# Get the completed dataset with imputed values
+credit_risk_dataset_imputed <- complete(imputed_data)
+
+# Check if missing values are removed
+colSums(is.na(credit_risk_dataset_imputed))
+
+
+summary(credit_risk_dataset)
+
+
+summary(credit_risk_dataset_imputed)
+
+```
+
+Comparing the summaries of the two datasets, credit_risk_dataset and credit_risk_dataset_imputed, we can see that that are no more missing values. Furthermore, we can see that there are differences in the dat, but they are very close. For person_emp_length in the original the median was 4.000 and in the imputed version it did not shift. But, the mean did. It went from 4.777 tp 4.79. This shows the accuracy of regression imputation. When comparing the two methods against each other, the multiple imputation method left us with the best results, which we will use for our feature engineering.
+
+
+## 5. Feature Transforming
+
+### Data Cleaning
+
+From the first assignment we have identified many illogical outliers such as outrageous ages and working experience. Below we will filter out these outliers again using our imputed data
+
+```{r, warning=FALSE}
+credit_risk <- credit_risk_dataset_imputed %>%
+    filter(!is.na(person_emp_length)) %>%
+    filter(!is.na(loan_int_rate)) %>%
+    filter(person_age < 90) %>%
+    filter(person_emp_length < 100)
+
+summary(credit_risk)
+```
+ Now that the dataset is free from outliers, we can start to transform our data from the first assignment. It was shown that there were some positively skewed distributions such as person_income and loan_amnt, so these should be transformed using a log transformation. Additionally person_age, person_emp_length, and cb_credit_hist_length has shown some skewness aswell. These should use a square root transformation as they are not to extreme. Finally, we saw that there was a heavy tail in the interest_loan_length, so will be transformed using a box cox transformation.The code for these transformations and their resulting graphs are shown below.
+ 
+ 
+```{r, warning=FALSE}
+
+# Log Transformation (for positively skewed variables)
+credit_risk <- credit_risk %>%
+  mutate(person_income_log = log1p(person_income),  # log1p(x) = log(x + 1) to handle zeros
+         loan_amnt_log = log1p(loan_amnt))
+
+# Square Root Transformation (moderate skewness)
+credit_risk <- credit_risk %>%
+  mutate(person_age_sqrt = sqrt(person_age),
+         person_emp_length_sqrt = sqrt(person_emp_length),
+         cb_person_cred_hist_length_sqrt = sqrt(cb_person_cred_hist_length))
+
+# Inverse Transformation (for extreme right skew)
+credit_risk <- credit_risk %>%
+  mutate(loan_int_rate_inv = 1 / (loan_int_rate + 1),  # Avoid division by zero
+         loan_percent_income_inv = 1 / (loan_percent_income + 1))
+```
+
+```{r, warning=FALSE}
+
+par(mfrow = c(2, 3))  # Arrange plots in a grid
+
+
+plot(density(credit_risk$person_income_log, na.rm = TRUE), 
+     main = "Log-Transformed Income", xlab = "Log(Income)", col = "red", lwd = 2) 
+
+plot(density(credit_risk$loan_amnt_log, na.rm = TRUE), 
+     main = "Log-Transformed Loan Amount", xlab = "Log(Loan Amount)", col = "red", lwd = 2)
+
+plot(density(credit_risk$person_age_sqrt, na.rm = TRUE), 
+     main = "Square Root Transformed Age", xlab = "Sqrt(Age)", col = "red", lwd = 2)
+
+plot(density(credit_risk$person_emp_length_sqrt, na.rm = TRUE), 
+     main = "Square Root Transformed Employment Length", xlab = "Sqrt(Emp Length)", col = "red", lwd = 2)
+
+plot(density(credit_risk$loan_int_rate_inv, na.rm = TRUE), 
+     main = "Inverse Transformed Interest Rate", xlab = "1 / Loan Int Rate", col = "red", lwd = 2)
+
+plot(density(credit_risk$loan_percent_income_inv, na.rm = TRUE), 
+     main = "Inverse Transformed Loan % Income", xlab = "1 / Loan % Income", col = "red", lwd = 2)
+
+```
+Now these variables have been normalized and corrected for skewness. This gives us a better picture. We still see specific groups with loan interest rate, and therefore should discretize this feature. Almost all employment length is less than 20 years, therefore it might be useful to break that down into categories for stages of one's career and discretion from there.
+
+## 5. Feature Selection
+
+When looking some of the relationships between varibles, we can use logistical modeling to see the reslationships and filter down to only the significant features. We will start with the full model with our target feature loan_status. From there, we will use step-wise regression to keep only significant terms. Our tranfromed features will be used.
+
+Below is the code for the full logistical model
+
+```{r, fig.align='center', warning=FALSE}
+# Fit the full logistic regression model with all predictors
+full_logit_model <- glm(loan_status ~ person_age_sqrt + person_income_log + person_home_ownership + 
+                        person_emp_length_sqrt + loan_intent + loan_grade + loan_amnt_log + loan_int_rate + 
+                        loan_percent_income_inv + cb_person_default_on_file + cb_person_cred_hist_length_sqrt, 
+                        data = credit_risk, 
+                        family = binomial())
+
+# Check summary of the full logistic regression model
+summary(full_logit_model)
+
+```
+Here we can see high significance amount features, but income, ownership, grade, defaulting, and history length are not signficant.
+
+Now lets use stepwise regression.
+
+```{r, fig.align='center', warning=FALSE}
+# Perform stepwise logistic regression (both directions)
+stepwise_logit_model <- step(full_logit_model, direction = "both", trace = 1)
+
+# View the final model summary
+summary(stepwise_logit_model)
+
+```
+When comparing the two models, the reduced model has a lower AIC score, which is better. 
+
+Now that we have significant terms, we must also think about domain knowledge. When thinking of loan defaults what variables may have an impact? I think the variables that must be kept are age, income, income_percentage, and interest_rate.
+
+
+Now we will filter out and only keep those variables.
+```{r, fig.align='center', warning=FALSE}
+# Create a new dataset with only the selected variables
+filtered_dataset <- credit_risk[, c("person_age_sqrt", "person_income_log", "loan_percent_income_inv", "loan_int_rate", "loan_status")]
+
+# Check the first few rows of the new dataset
+head(filtered_dataset)
+
+```
+
+## 5. Feature Creation
+
+From the previous assignment we have identified categorical variables that should be regrouped to simplify our model. Regrouping simplies our model, which imporves our power.
+
+These can be shown being regrouped below:
+
+```{r, fig.align='center', warning=FALSE}
+# 1. Regrouping Credit History (cb_person_cred_hist_length) into categories
+filtered_dataset <- credit_risk %>%
+  mutate(credit_history_group = case_when(
+    cb_person_cred_hist_length <= 5 ~ "0-5 years",
+    cb_person_cred_hist_length <= 10 ~ "5-10 years",
+    cb_person_cred_hist_length > 10 ~ "11+ years"
+  ))
+
+# 2. Regrouping Loan Grade (loan_grade) into groups
+filtered_dataset_ <- credit_risk %>%
+  mutate(loan_grade_group = case_when(
+    loan_grade %in% c("A", "B") ~ "A-B",
+    loan_grade %in% c("C", "D") ~ "C-D",
+    loan_grade %in% c("E", "F", "G") ~ "E-G"
+  ))
+
+# 3. Regrouping Loan Intent (loan_intent) into Necessity vs Want
+filtered_dataset_ <- credit_risk%>%
+  mutate(loan_intent_group = case_when(
+    loan_intent == "MEDICAL" ~ "Necessity", 
+    loan_intent %in% c("PERSONAL", "VENTURE") ~ "Want",
+    loan_intent == "EDUCATION" ~ "Other"  # If you want to handle other categories
+  ))
+
+# Check the results
+head(filtered_dataset)
+
+ 
+
+```
+Now let's move in decrectizing some of our numerical variables. This is useful for multiple reasons, including improving model interpretability, handling non-linearity, and reducing noisy data. This os grouping continous data. Some of the variables we are going to discretize are age, income and interest rates.
+
+Below is the code in order to discretize data
+
+```{r, fig.align='center', warning=FALSE}
+credit_risk <- credit_risk %>%
+  # Discretize Age
+  mutate(person_age= case_when(
+    person_age <= 30 ~ "Young",
+    person_age > 30 & person_age <= 50 ~ "Middle-Aged",
+    person_age > 50 ~ "Older",
+    TRUE ~ NA_character_  # Handle unexpected values
+  )) %>%
+
+  # Discretize Income
+  mutate(person_income = case_when(
+    person_income < 25000 ~ "Low Income",
+    person_income >= 25000 & person_income <= 75000 ~ "Middle Income",
+    person_income > 75000 ~ "High Income",
+    TRUE ~ NA_character_
+  )) %>%
+
+  # Discretize Loan Interest Rate
+  mutate(loan_int_rate = case_when(
+    loan_int_rate < 10 ~ "Low Interest",
+    loan_int_rate >= 10 & loan_int_rate <= 20 ~ "Medium Interest",
+    loan_int_rate > 20 ~ "High Interest",
+    TRUE ~ NA_character_
+  )) %>%
+
+  # Discretize Loan Percentage of Income
+  mutate(loan_percent_income = case_when(
+    loan_percent_income < 0.2 ~ "Low Burden",
+    loan_percent_income >= 0.2 & loan_percent_income <= 0.5 ~ "Medium Burden",
+    loan_percent_income > 0.5 ~ "High Burden",
+    TRUE ~ NA_character_
+  ))
+
+# Convert new columns to factors
+
+# Check the first few rows
+head(credit_risk)
+
+```
+
+Finally, we want to filter all our data into  one cleaned dataset. We only want our discretized variables and those domain variables we discussed earlier. Below the code to filter the final dataset is seen below. This data is now able to be used for future analysis.
+
+
+## Conclusion
+
+This analysis we identified missing observations and imputed values using mode, regression and multiple imputation techniques. Then we used feature engineering to select and manipulate features for appropriate analysis.
+
+
+
+
+
+
+
+
+
