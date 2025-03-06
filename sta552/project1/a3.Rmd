@@ -1,0 +1,1071 @@
+---
+title: 'Exploring Credit Risk for Lenders and Borrowers'
+author: " Jessica Gorr"
+date: "3/4/2025"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    number_sections: no
+    toc_collapsed: yes
+    code_folding: hide
+    code_download: yes
+    smooth_scroll: yes
+    theme: lumen
+  word_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    keep_md: yes
+  pdf_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    number_sections: no
+    fig_width: 3
+    fig_height: 3
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 22px;
+  font-weight: bold;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 18px;
+  font-weight: bold;
+  font-family: system-ui;
+  color: navy;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+  font-weight: bold;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 18px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: center;
+    font-weight: bold;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 16px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+    font-weight: bold;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 14px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 12px;
+    font-family: "Gill Sans", sans-serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+# code chunk specifies whether the R code, warnings, and output
+# will be included in the output files.
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+
+if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+  
+if (!require("patchwork")) {
+   install.packages("patchwork")
+   library(patchwork)
+}
+
+if (!require("reshape2")) {
+   install.packages("reshape2")
+   library(reshape2)
+}
+
+if (!require("tinytex")) {
+   install.packages("tinytex")
+   library(tinytex)
+}
+
+
+if (!require("neuralnet")) {
+   install.packages("neuralnet")
+   library(neuralnet)
+}
+
+if (!require("rpart")) {
+   install.packages("rpart")
+   library(rpart)
+}
+
+if (!require("rpart.plot")) {
+   install.packages("rpart.plot")
+   library(rpart.plot)
+}
+
+if (!require("pROC")) {
+   install.packages("pROC")
+   library(pROC)
+}
+
+if (!require("vip")) {
+   install.packages("vip")
+   library(vip)
+}
+
+if (!require("ggfortify")) {
+   install.packages("ggfortify")
+   library(vip)
+}
+
+if (!require("dbscan")) {
+   install.packages("dbscan")
+   library(dbscan)
+}
+if (!require("vcd")){
+  install.packages("vcd")
+  library(vcd)
+}
+
+if (!require("cluster")) {
+   install.packages("cluster")
+   library(cluster)
+}
+
+if (!require("factoextra")) {
+   install.packages("factoextra")
+   library(factoextra)
+}
+knitr::opts_chunk$set(echo = TRUE, # include code chunk in the
+ # output file
+ warnings = FALSE, # sometimes, you code may
+ # produce warning messages,
+# you can choose to include
+# the warning messages in
+ # the output file.
+ results = TRUE, # you can also decide whether
+ # to include the output
+# in the output file.
+ message = FALSE,
+ comment = NA
+)  
+```
+
+
+
+## 1. Introduction
+
+
+The purpose of this analysis is to look at some insights and interesting features of credit card risks for both the lender and borrowers. There have been no methods that describe how or where the the data was collected, so we will not take into account on how countries laws are applicable to lenders.  The target variable is loan_status, which describes if a borrower has a defaulted loan. There are two questions we are trying to answer, using linear and logistical regression. The first question is what factors influence the loan amounts? The second question using logistical regression is who will default on their credit (loan_status). 
+
+The dataset is composed by 32581 rows (observations) and 12 columns (variables), which are described below:
+  
+
+person_age (numerical): is the age of the person at the time of the loan.
+
+person_income (numerical): is the yearly income of the person at the time of the loan.
+
+person_home_ownership (categorical): is the type of ownership of the home.
+
+person_emp_length (numerical): is the amount of time in years that person is employed.
+
+loan_intent (categorical): is the aim of the loan.
+
+loan_grade (categorical): is a classification system that involves assigning a quality score to a loan based on a borrower's credit history, quality of the collateral, and the likelihood of repayment of the principal and interest.
+
+loan_amnt (numerical): is the dimension of the loan taken.
+
+loan_int_rate (numerical): is the interest paid for the loan.
+
+loan_status (binary): is a dummy variable where 1 is default, 0 is not default.
+
+loan_percent_income (numerical): is the ratio between the loan taken and the annual income.
+
+cb_person_default_on_file (binary): answers whether the person has defaulted before.
+
+cb_person_cred_hist_length (numerical): represents the number of years of personal history since the first loan taken from that person.
+
+A public link to the data can be found here: https://www.kaggle.com/datasets/laotse/credit-risk-dataset
+
+
+In this assignment, we will perform exploratory data anaylsis to find some key findings and questions that lie with the dataset. Then imputuing missing variavles using the MICE method will be used for featuring engineering and selecting the features to answer the two questions. Linear regression will be used to find what facotrs have a significant relationship with loan interest rates(loan_int_rate). Then, a logistic regression model will be determined if someone will default on their loan (loan_status).
+
+
+
+```{r, warning=FALSE}
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+
+#Load the sample data
+credit_risk_dataset = read.csv("https://jessgorr01.github.io/STA551/sta552/project1/credit_risk_dataset.csv")
+
+
+head(credit_risk_dataset)
+```
+
+## 2. Exploratory Data Analysis
+
+The first step in the analysis is looking at all the individual features. In order to perform this action, all of the variables the the dataset will be converted to factors. this can be seen in the code chunk below. Following this, all missing data will be identified and a summary will be given to get a general overview of the credit risk data. Then visuals will be given to looking at the distributions of individual factors, and what insights can be discovered for future predicting and analysis.
+
+
+### Cleaning and first looks
+
+Below is a chunk to turn all the variables into factors.
+```{r, warning=FALSE}
+
+#Transforming variables to factors
+credit_risk_dataset$loan_status <- as.factor(credit_risk_dataset$loan_status)
+credit_risk_dataset$person_home_ownership <- as.factor(credit_risk_dataset$person_home_ownership)
+credit_risk_dataset$loan_intent <- as.factor(credit_risk_dataset$loan_intent)
+credit_risk_dataset$loan_grade <- as.factor(credit_risk_dataset$loan_grade)
+credit_risk_dataset$cb_person_default_on_file <- as.factor(credit_risk_dataset$cb_person_default_on_file)
+
+glimpse(credit_risk_dataset) # more ordered
+#str(credit_risk_dataset)
+```
+The summary of our data, including missing values is below:
+```{r, warning=FALSE}
+summary(credit_risk_dataset)
+colSums(is.na(credit_risk_dataset))  # Number of NAs in each column
+```
+Some quick insights that can be pulled from the summary of the data are:
+
+  1.person_age has a strange result: the max value is 144 which is unlikely to be true.
+  2.person_emp_length has 895 NAs
+  3.person_emp_length has a max value of 123 which is not possible.
+  4.loan_interest_rate has 3116 NAs
+  5.according to the data (loan_status), 21.82% (7108/32581) of people have defaulted, value that is quite high.
+  
+From these insights outliers can be identified. A plot below will focus one two we have potentally found above in our summary. 
+```{r, warning=FALSE}
+plot(credit_risk_dataset$person_age, credit_risk_dataset$person_emp_length,  main = "Scatterplot between age and employment length")
+```
+
+Here it can be clearly seen that there are some issues on data by looking at outliers. It is impossible that two 20 years old have over 120 years of experience. Now illogical outliers must be removed and cleaned from the data before starting exploratory phase. This can be seen below:
+
+```{r, warning=FALSE}
+credit_risk <- credit_risk_dataset %>%
+    filter(!is.na(person_emp_length)) %>%
+    filter(!is.na(loan_int_rate)) %>%
+    filter(person_age < 90) %>%
+    filter(person_emp_length < 100)
+
+summary(credit_risk)
+```
+ 
+
+### Multible Imputation
+
+In order to impute all the missing values in the data, multiple regression imputation will be done through the MICE library. Multiple Regression-based imputation is a method where missing numerical values are predicted using regression models based on other available features. This imputation method helps maintain relationships between variables and provides more accurate imputations compared to mode imputation for categorical variables and median/mean for numerical variables.
+
+
+Below we will use the mice() library to do a regression based imputation. There are two variable with multiple missing values, person_emp_length, which is how long someone is employed, and loan_int_rate, which is the interest rate of the loan. 
+
+```{r, warning=FALSE}
+# Load necessary package
+library(mice)
+
+# Select only numerical columns for regression imputation
+num_vars <- c("person_emp_length", "loan_int_rate")
+
+# Perform regression-based imputation
+imputed_data <- mice(credit_risk_dataset, method = "norm.predict", m = 1)
+
+# Get the completed dataset with imputed values
+credit_risk_dataset_imputed <- complete(imputed_data)
+
+# Check if missing values are removed
+colSums(is.na(credit_risk_dataset_imputed))
+
+
+summary(credit_risk_dataset)
+
+
+summary(credit_risk_dataset_imputed)
+
+```
+
+Comparing the summaries of the two datasets, credit_risk_dataset and credit_risk_dataset_imputed, we can see that that are no more missing values. Furthermore, we can see that there are differences in the data, but they are very close. For person_emp_length in the original the median was 4.000 and in the imputed version it did not shift. But, the mean did. It went from 4.777 tp 4.79. This shows the accuracy of regression imputation. When comparing the two methods against each other, the multiple imputation method left us with the best results, which we will use for our feature engineering.
+
+
+
+### Distributions
+
+```{r, warning=FALSE}
+# Set up the panel layout with 3 rows and 3 columns
+par(mfrow = c(3, 3))  
+
+plot(density(credit_risk_dataset$person_emp_length, na.rm = TRUE), main = "Density Plot of Employment Length", 
+     xlab = "Employment Length (Years)", ylab = "Density", col = "blue", lwd = 2)
+
+plot(density(credit_risk_dataset$loan_amnt, na.rm = TRUE), main = "Density Plot of Loan Amounts", 
+     xlab = "Loan Amount", ylab = "Density", col = "blue", lwd = 2)
+
+plot(density(credit_risk_dataset$cb_person_cred_hist_length, na.rm = TRUE), main = "Density Plot of Credit History in Years", 
+     xlab = "Credit History (Years)", ylab = "Density", col = "blue", lwd = 2)
+
+# Reset plotting layout to default
+par(mfrow = c(1, 1))  
+
+```
+
+From the density plots a few insights can be made:
+  1. Looking at credit history, there are three distinct groups: 0-5 years, 5-10 years, and 11+ years. Therefore it might be useful to combine into one categorical variable.
+  2. Loan amounts vary, but the vast majority's less than 10,000 dollars.
+  3.Almost all employment length is less than 20 years, therefore it might be useful to break that down into categories for stages of one's career.
+  
+Therefore we can discreteness the credit history into the three groups in order to make the model less complex. Also we can cap the loan amount variable to shorten the data we are looking at in order to hone into the the majority of people. Finally, looking at the employment length, sub-groups can also be made to simplify the model.
+
+Moving on to the categorical features, we can see below that:
+  1. Loan Defaults and Loan Status are the same, so we can discard Loan Defaults to get rid of redundancy.
+  2.Loan Grade has a distinct grouping with A-B, C-D, and E-G. These can be combined into three groups.
+  3. Loan intent seems to have some groups that can be combined. These can be categorized as necessity/want. An example of this could be venture/personal vs medical.
+  
+```{r, warning=FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(gridExtra)
+
+# Create individual bar plots
+p1 <- ggplot(credit_risk_dataset, aes(x = loan_status)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Status") +
+  xlab("Loan Status") +
+  ylab("Frequency") +
+  theme_minimal()
+
+p2 <- ggplot(credit_risk_dataset, aes(x = person_home_ownership)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Home Ownership") +
+  xlab("Home Ownership") +
+  ylab("Frequency") +
+  theme_minimal()
+
+p3 <- ggplot(credit_risk_dataset, aes(x = loan_intent)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Intent") +
+  xlab("Loan Intent") +
+  ylab("Frequency") +
+  theme_minimal()
+
+p4 <- ggplot(credit_risk_dataset, aes(x = loan_grade)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Grade") +
+  xlab("Loan Grade") +
+  ylab("Frequency") +
+  theme_minimal()
+
+p5 <- ggplot(credit_risk_dataset, aes(x = cb_person_default_on_file)) +
+  geom_bar(fill = "red", color = "black") +
+  ggtitle("Bar Plot of Loan Defaults") +
+  xlab("Loan Defaults on File") +
+  ylab("Frequency") +
+  theme_minimal()
+
+# Arrange plots into a grid layout
+grid.arrange(p1, p2, p3, p4, p5, ncol = 2)
+
+
+```
+
+### Relationship between Features
+
+Now that we have looking the the features individually, we can do some analysis to find insights between the relationships with other features. This insights can provide clarity on what future analysis should focus the attention on. This exploratory analysis will perform three relationship between:
+  1. two numerical variables
+  2. two categorical variables
+  3. one numerical and one categorical variable.
+  
+All insights will be explain through visuals and text.
+
+First we will explore the relationship between two numerical variables, age and the loan percentage of their income.
+
+```{r, fig.align='center', warning=FALSE}
+plot1 <- ggplot(credit_risk_dataset, aes(x = person_age, y = loan_percent_income)) +
+  geom_point() +  
+  ylab("Income") +  
+  xlab("Age") +  
+  scale_x_continuous(limits = c(0, 100)) +  
+  theme_minimal()  
+
+
+
+plot1
+```
+From this scatterplot, we can clearly see the is a negative correlation between age and loan percentage to income. Younger people tend to have a higher loan percentage of their income compared to older people. This indicates a relationship, and will be explored in a linear regression model later on in this report.
+
+Now looking at two categorical variables we can analyze them visually through a stacked bar plot. Here we will look at the relationship between loan intent and loan grade.
+
+```{r, fig.align='center', warning=FALSE}
+
+df_percent <- credit_risk_dataset %>%
+  group_by(loan_grade, loan_intent) %>%
+  summarise(count = n()) %>%
+  group_by(loan_grade) %>%
+  mutate(percent = count / sum(count) * 100)
+
+# Create the stacked bar plot with percentages
+ggplot(df_percent, aes(x = loan_grade, y = percent, fill = loan_intent)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Stacked Bar Plot of Loan Grade by Loan Intent (Percent)",
+       x = "Loan Grade",
+       y = "Percentage") +
+  scale_fill_manual(values = c("red", "blue", "purple", "yellow", "orange", "pink")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") 
+
+
+```
+
+From the stacked bar chart and the percentages, we can see thal all intent and loan grades are very similar and there does not seem to be a significant difference. This means this feature should not be selected and focused on in answering the question on if someone will default on their loan (loan_status).
+
+
+Finally we will explore the relationship between one numerical variable, loan interest rate, with a categorical feature, home ownership. This will be explored using boxplots.
+
+```{r, fig.align='center', warning=FALSE}
+ggplot(credit_risk_dataset, aes(x = loan_int_rate, y = person_home_ownership)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of Interest Rates by Homeownership",
+       x = "Interest Rate",
+       y = "Homeownership") +
+  theme_minimal()
+```
+
+Looking at the different plots, we can see they are all similar except for the "Other" category for Homeownership. This indicates from my perspective to target younger adults who might live at home. These individuals might be using loans with a low income, which can cause higher interest rates. Therefore, homeownership is a potentally important feature we should put into our linear regression model.
+
+
+## 3. Feauture Engineering
+
+Above we have identified many illogical outliers such as outrageous ages and working experience. Below we will filter out these outliers again using our imputed data
+
+```{r, warning=FALSE}
+credit_risk <- credit_risk_dataset_imputed %>%
+    filter(!is.na(person_emp_length)) %>%
+    filter(!is.na(loan_int_rate)) %>%
+    filter(person_age < 90) %>%
+    filter(person_emp_length < 100)
+
+summary(credit_risk)
+```
+ Now that the dataset is free from outliers, we can start to transform our data from the distributions above. It was shown that there were some positively skewed distributions such as person_income and loan_amnt, so these should be transformed using a log transformation. Additionally person_age, person_emp_length, and cb_credit_hist_length has shown some skewness aswell. These should use a square root transformation as they are not to extreme. Finally, we saw that there was a heavy tail in the interest_loan_length, so will be transformed using a box cox transformation.The code for these transformations and their resulting graphs are shown below.
+ 
+ 
+```{r, warning=FALSE}
+
+# Log Transformation (for positively skewed variables)
+credit_risk <- credit_risk %>%
+  mutate(person_income_log = log1p(person_income),  # log1p(x) = log(x + 1) to handle zeros
+         loan_amnt_log = log1p(loan_amnt))
+
+# Square Root Transformation (moderate skewness)
+credit_risk <- credit_risk %>%
+  mutate(person_age_sqrt = sqrt(person_age),
+         person_emp_length_sqrt = sqrt(person_emp_length),
+         cb_person_cred_hist_length_sqrt = sqrt(cb_person_cred_hist_length))
+
+# Inverse Transformation (for extreme right skew)
+credit_risk <- credit_risk %>%
+  mutate(loan_int_rate_inv = 1 / (loan_int_rate + 1),  # Avoid division by zero
+         loan_percent_income_inv = 1 / (loan_percent_income + 1))
+```
+
+```{r, warning=FALSE}
+
+par(mfrow = c(2, 3))  # Arrange plots in a grid
+
+
+plot(density(credit_risk$person_income_log, na.rm = TRUE), 
+     main = "Log-Transformed Income", xlab = "Log(Income)", col = "red", lwd = 2) 
+
+plot(density(credit_risk$loan_amnt_log, na.rm = TRUE), 
+     main = "Log-Transformed Loan Amount", xlab = "Log(Loan Amount)", col = "red", lwd = 2)
+
+plot(density(credit_risk$person_age_sqrt, na.rm = TRUE), 
+     main = "Square Root Transformed Age", xlab = "Sqrt(Age)", col = "red", lwd = 2)
+
+plot(density(credit_risk$person_emp_length_sqrt, na.rm = TRUE), 
+     main = "Square Root Transformed Employment Length", xlab = "Sqrt(Emp Length)", col = "red", lwd = 2)
+
+plot(density(credit_risk$loan_int_rate_inv, na.rm = TRUE), 
+     main = "Inverse Transformed Interest Rate", xlab = "1 / Loan Int Rate", col = "red", lwd = 2)
+
+plot(density(credit_risk$loan_percent_income_inv, na.rm = TRUE), 
+     main = "Inverse Transformed Loan % Income", xlab = "1 / Loan % Income", col = "red", lwd = 2)
+
+```
+Now these variables have been normalized and corrected for skewness. This gives us a better picture. We still see specific groups with loan interest rate, and therefore should discretize this feature. Almost all employment length is less than 20 years, therefore it might be useful to break that down into categories for stages of one's career and discretion from there.
+
+## 4. Feature Selection and Creation
+
+Above we have identified categorical variables that should be regrouped to simplify our model. Regrouping simplifies our model, which improves our power.
+
+These can be shown being regrouped below:
+
+```{r, fig.align='center', warning=FALSE}
+# 1. Regrouping Credit History (cb_person_cred_hist_length) into categories
+filtered_dataset <- credit_risk %>%
+  mutate(credit_history_group = case_when(
+    cb_person_cred_hist_length <= 5 ~ "0-5 years",
+    cb_person_cred_hist_length <= 10 ~ "5-10 years",
+    cb_person_cred_hist_length > 10 ~ "11+ years"
+  ))
+
+# 2. Regrouping Loan Grade (loan_grade) into groups
+filtered_dataset_ <- credit_risk %>%
+  mutate(loan_grade_group = case_when(
+    loan_grade %in% c("A", "B") ~ "A-B",
+    loan_grade %in% c("C", "D") ~ "C-D",
+    loan_grade %in% c("E", "F", "G") ~ "E-G"
+  ))
+
+# 3. Regrouping Loan Intent (loan_intent) into Necessity vs Want
+filtered_dataset_ <- credit_risk%>%
+  mutate(loan_intent_group = case_when(
+    loan_intent == "MEDICAL" ~ "Necessity", 
+    loan_intent %in% c("PERSONAL", "VENTURE") ~ "Want",
+    loan_intent == "EDUCATION" ~ "Other"  # If you want to handle other categories
+  ))
+
+# Check the results
+head(filtered_dataset)
+
+ 
+
+```
+Now let's move in discrectizing some of our numerical variables. This is useful for multiple reasons, including improving model interpretability, handling non-linearity, and reducing noisy data. This os grouping continuous data. Some of the variables we are going to discretize are age, income and interest rates.
+
+Below is the code in order to discretize data
+
+```{r, fig.align='center', warning=FALSE}
+credit_risk <- credit_risk %>%
+  # Discretize Age
+  mutate(person_age= case_when(
+    person_age <= 30 ~ "Young",
+    person_age > 30 & person_age <= 50 ~ "Middle-Aged",
+    person_age > 50 ~ "Older",
+    TRUE ~ NA_character_  # Handle unexpected values
+  )) %>%
+
+  # Discretize Income
+  mutate(person_income = case_when(
+    person_income < 25000 ~ "Low Income",
+    person_income >= 25000 & person_income <= 75000 ~ "Middle Income",
+    person_income > 75000 ~ "High Income",
+    TRUE ~ NA_character_
+  )) %>%
+
+  # Discretize Loan Interest Rate
+  mutate(loan_int_rate = case_when(
+    loan_int_rate < 10 ~ "Low Interest",
+    loan_int_rate >= 10 & loan_int_rate <= 20 ~ "Medium Interest",
+    loan_int_rate > 20 ~ "High Interest",
+    TRUE ~ NA_character_
+  )) %>%
+
+  # Discretize Loan Percentage of Income
+  mutate(loan_percent_income = case_when(
+    loan_percent_income < 0.2 ~ "Low Burden",
+    loan_percent_income >= 0.2 & loan_percent_income <= 0.5 ~ "Medium Burden",
+    loan_percent_income > 0.5 ~ "High Burden",
+    TRUE ~ NA_character_
+  ))
+
+# Convert new columns to factors
+
+# Check the first few rows
+head(credit_risk)
+
+```
+
+Finally, we want to filter all our data into  one cleaned dataset. We only want our discretized variables and those domain variables we discussed earlier. Below the code to filter the final dataset is seen below. This data is now able to be used for future analysis.
+
+
+## 5. Linear Regression
+
+We can use a linear model for finding association features to the loan amounts.The feature, loan_amnt_log, which tells tells what how much a client's loan is worth.
+
+### Create Candidate Models
+
+The full/initial model containing all of the predictor variables will be made first, with 'loan_amnt_log' as the response. The features that were all transformed above will be used.
+
+
+```{r, warning=FALSE}
+# Fit the linear regression model
+linear_model <- lm(loan_amnt_log ~ person_age_sqrt + person_income_log + person_home_ownership + 
+                   person_emp_length_sqrt + loan_intent + loan_grade + loan_int_rate + 
+                   loan_percent_income_inv + cb_person_default_on_file + cb_person_cred_hist_length_sqrt, 
+                   data = credit_risk)
+
+# Print summary to view the coefficients and significance tests
+summary(linear_model)
+
+# Diagnostic plots to assess the assumptions of linear regression
+plot(linear_model)
+
+# Extract and display the coefficients and significance tests
+coefficient_table <- summary(linear_model)$coef
+library(knitr)
+kable(coefficient_table, caption = "Significance tests of linear regression model")
+
+# Adjusted R-squared and F-statistic for model evaluation
+cat("Adjusted R-squared: ", summary(linear_model)$adj.r.squared, "\n")
+cat("F-statistic: ", summary(linear_model)$fstatistic[1], "\n")
+cat("p-value: ", summary(linear_model)$fstatistic[4], "\n")
+
+```
+
+We can see that there are some insignificant predictor variables, and they should be dropped from the model. Using the step() function, we will now find  the final model. The final best model will be a model that is between the full and reduced models.
+
+```{r, warning=FALSE}
+library(MASS)
+
+# Box-Cox Transformation for the 'loan_int_rate' variable to find optimal lambda
+boxcox(loan_amnt_log ~ person_age_sqrt + person_income_log + person_home_ownership + 
+                   person_emp_length_sqrt + loan_intent + loan_grade + loan_int_rate + 
+                   loan_percent_income_inv + cb_person_default_on_file + cb_person_cred_hist_length_sqrt, 
+                   data = credit_risk,
+       lambda = seq(-1, 1.5, length = 10), 
+       xlab = expression(paste(lambda)))
+
+title(main = "Box-Cox Transformation: 95% CI of lambda",
+      col.main = "navy", cex.main = 0.9)
+
+# Log transformation of the target variable ('loan_int_rate')
+transform.model = lm(log(loan_amnt_log) ~ person_age_sqrt + person_income_log + person_home_ownership + 
+                   person_emp_length_sqrt + loan_intent + loan_grade + loan_int_rate + 
+                   loan_percent_income_inv + cb_person_default_on_file + cb_person_cred_hist_length_sqrt, 
+                   data = credit_risk)
+
+# Diagnostic plots for the log-transformed model
+par(mfrow = c(2, 2), mar = c(2, 2, 2, 2))
+plot(transform.model)
+
+# Summarize the coefficients of the transformed model
+kable(summary(transform.model)$coef, caption = "Summarized statistics of the regression coefficients of the log-transformed model")
+
+# Stepwise regression to select the best model (backward elimination)
+final.model = step(transform.model, direction = "backward", trace = 0)
+
+# Summarize the coefficients of the final model after stepwise selection
+kable(summary(final.model)$coef, caption = "Summary statistics of the regression coefficients of the final model")
+
+```
+
+### Use Cross-validation for Model Selection
+
+Use cross-validation and MSE as a predictive performance measure to select the best model.
+
+Now we the two candidate models to select from. We extract the coefficient of determination R2
+of each of the candidate models.
+```{r, warning=FALSE}
+# R-squared for the initial model (before transformation)
+r.ini.model = summary(linear_model)$r.squared
+
+# R-squared for the transformed model (log-transformed target variable)
+r.transfd.model = summary(transform.model)$r.squared
+
+# R-squared for the final model (after stepwise selection)
+r.final.model = summary(final.model)$r.squared
+
+# Combine the R-squared values into a table
+Rsquare = cbind(initial.model = r.ini.model, transfd.model = r.transfd.model, 
+                final.model = r.final.model)
+
+# Display the table of R-squared values
+kable(Rsquare, caption = "R-squared values for the three candidate models")
+
+```
+
+All three of these models are decent with R-squared scores of 90.3, 88.6, and 88.6. Out of the three the best performing model is the initial model. The summary for the inital model is below.
+
+```{r, Warning=FALSE}
+
+
+kable(summary(linear_model)$coef, caption = "Summarized statistics of the regression 
+      coefficients of the initial model")
+
+```
+
+### Linear Regression Results 
+
+In summary, person_income_log, person_homeownship, loan_intent, loan_grade, and loan_percent_income_inv are statistically significant (p-value <.05). These factors indicate a significant relationship with the target variable, loan_amnt. All of these features are negatively associated with loan_amnt, meaning they decrease the amount someone will take out a loan for.
+
+## 6.logistical Regression
+
+When looking to answer the question if someone will default on their loan (loan_status), we can use logistical modeling. We will start with the full model with our target feature loan_status. From there, we will use step-wise regression to keep only significant terms. Our transformed features will be used.
+
+Below is the code for the full logistical model
+
+```{r, fig.align='center', warning=FALSE}
+# Fit the full logistic regression model with all predictors
+full_logit_model <- glm(loan_status ~ person_age_sqrt + person_income_log + person_home_ownership + 
+                        person_emp_length_sqrt + loan_intent + loan_grade + loan_amnt_log + loan_int_rate + 
+                        loan_percent_income_inv + cb_person_default_on_file + cb_person_cred_hist_length_sqrt, 
+                        data = credit_risk, 
+                        family = binomial())
+
+# Check summary of the full logistic regression model
+#summary(full_logit_model)
+
+coefficient.table = summary(full_logit_model)$coef
+kable(coefficient.table, caption = "Significance tests of logistic regression model")
+
+```
+Here we can see high significance amount features, but income, ownership, grade, defaulting, and history length are not significant.
+
+Now lets use stepwise regression.
+
+```{r, fig.align='center', warning=FALSE}
+# Perform stepwise logistic regression (both directions)
+stepwise_logit_model <- step(full_logit_model, direction = "both", trace = 1)
+
+# View the final model summary
+#summary(stepwise_logit_model)
+
+
+final.model.coef = summary(stepwise_logit_model)$coef
+kable(final.model.coef, caption = "Summary table of significant tests")
+```
+## Model Selection
+
+
+Now that we have our canidate models. It is time to perform some model selction using the ROC curve and AUC.
+
+Since our sample is relatively large, we will randomly split the overall data set into two data sets. 70% of the data will be put in a training data set for training and validating models. The other 30% goes into a testing data set used for testing the final model. The value labels of the response (yes/no) used for testing and validation data will be removed when calculating the accuracy measures later.
+
+```{r, warning=FALSE}
+# Recode response variable: "1" = Yes, "0" = No
+yes.id = which(credit_risk$loan_status == "1") 
+no.id = which(credit_risk$loan_status == "0")
+
+# Create new recoded variable
+credit_risk$loan_status_recode = 0
+credit_risk$loan_status_recode[yes.id] = 1
+
+# List of variables to include in the model
+var.names = c("person_age_sqrt", "person_income_log", "person_home_ownership", 
+              "person_emp_length_sqrt", "loan_intent", "loan_grade", "loan_amnt_log", 
+              "loan_int_rate", "loan_percent_income_inv", "cb_person_default_on_file", 
+              "cb_person_cred_hist_length_sqrt", "loan_status_recode")
+
+# Subset the dataset to include relevant variables
+credit_risk = credit_risk[, var.names]
+
+# Split data into training and testing sets (70% training, 30% testing)
+nn = dim(credit_risk)[1]
+train.id = sample(1:nn, round(nn*0.7), replace = FALSE)
+
+# Create training and testing datasets
+training = credit_risk[train.id, ]
+testing = credit_risk[-train.id, ]
+
+```
+### Cut-off Probability Search and Accuracy Score
+
+In order to find an optimal cut-off probability, a sequence of 20 candidate cut-off probabilities will be defined. Then, a _5-fold cross-validation will be performed to find the optimal cut-off probability of the final model_. All models created will be used to find the optimal cut-off. This is shown below.
+```{r, fig.align= 'center', fig.cap="5-fold CV performance plot", warning=FALSE}
+## Cut-off Probability Search and Accuracy Score for credit_risk
+
+# Total number of observations for 5-fold cross-validation
+n0 = dim(training)[1] / 5
+
+# Candidate cut-off probabilities (sequence from 0 to 1 with 20 values)
+cut.0ff.prob = seq(0, 1, length = 22)[-c(1, 22)]
+
+# Null vector for storing prediction accuracy
+pred.accuracy = matrix(0, ncol = 20, nrow = 5, byrow = TRUE)
+
+## 5-fold Cross-Validation
+for (i in 1:5) {
+  # Splitting the data into validation and training sets for each fold
+  valid.id = ((i - 1) * n0 + 1):(i * n0)
+  valid.data = training[valid.id, ]
+  train.data = training[-valid.id, ]
+  
+  # Fit the logistic regression model using training data
+  train.model = glm(loan_status_recode ~ person_age_sqrt + person_income_log + person_home_ownership + 
+                    person_emp_length_sqrt + loan_intent + loan_grade + loan_amnt_log + 
+                    loan_int_rate + loan_percent_income_inv + cb_person_default_on_file + 
+                    cb_person_cred_hist_length_sqrt, 
+                    family = binomial(link = logit), data = train.data)
+  
+  # Predict probabilities for the validation set
+  pred.prob = predict.glm(train.model, valid.data, type = "response")
+  
+  # Define confusion matrix and accuracy for each cut-off probability
+  for (j in 1:20) {
+    # Predicted subscribe based on cut-off probability
+    valid.data$pred.subscribe = as.numeric(pred.prob > cut.0ff.prob[j])
+    
+    # Calculate accuracy (proportion of correct predictions)
+    a11 = sum(valid.data$pred.subscribe == valid.data$loan_status_recode)
+    pred.accuracy[i, j] = a11 / length(pred.prob)
+  }
+}
+
+# Average accuracy for each cut-off probability across all folds
+avg.accuracy = apply(pred.accuracy, 2, mean)
+
+# Find the cut-off probability with maximum average accuracy
+max.id = which(avg.accuracy == max(avg.accuracy))
+
+# Visual representation of 5-fold CV performance
+tick.label = as.character(round(cut.0ff.prob, 2))
+plot(1:20, avg.accuracy, type = "b",
+     xlim = c(1, 20),
+     ylim = c(0.5, 1),
+     axes = FALSE,
+     xlab = "Cut-off Probability",
+     ylab = "Accuracy",
+     main = "5-fold CV Performance (credit_risk)"
+)
+axis(1, at = 1:20, label = tick.label, las = 2)
+axis(2)
+segments(max.id, 0.5, max.id, avg.accuracy[max.id], col = "red")
+text(max.id, avg.accuracy[max.id] + 0.03, as.character(round(avg.accuracy[max.id], 4)), col = "red", cex = 0.8)
+
+```
+The above figure indicates that the optimal cut-off probability that yields the best accuracy is 0.48.
+
+```{r, warning=FALSE}
+## Creation of testing model for credit_risk
+test.model = glm(loan_status_recode ~ person_age_sqrt + person_income_log + person_home_ownership + 
+                 person_emp_length_sqrt + loan_intent + loan_grade + loan_amnt_log + 
+                 loan_int_rate + loan_percent_income_inv + cb_person_default_on_file + 
+                 cb_person_cred_hist_length_sqrt, family = binomial(link = logit), data = training)
+
+# Prepare the new testing dataset with the same structure as the training set
+newTestingData = data.frame(
+  person_age_sqrt = testing$person_age_sqrt,
+  person_income_log = testing$person_income_log,
+  person_home_ownership = testing$person_home_ownership,
+  person_emp_length_sqrt = testing$person_emp_length_sqrt,
+  loan_intent = testing$loan_intent,
+  loan_grade = testing$loan_grade,
+  loan_amnt_log = testing$loan_amnt_log,
+  loan_int_rate = testing$loan_int_rate,
+  loan_percent_income_inv = testing$loan_percent_income_inv,
+  cb_person_default_on_file = testing$cb_person_default_on_file,
+  cb_person_cred_hist_length_sqrt = testing$cb_person_cred_hist_length_sqrt
+)
+
+# Predict probabilities using the testing dataset
+pred.prob.test = predict.glm(test.model, newTestingData, type = "response")
+
+## Assessing Model Accuracy
+# Choose a cut-off probability (e.g., 0.62)
+testing$test.subscribe = as.numeric(pred.prob.test > 0.62)
+
+# Calculate accuracy (proportion of correct predictions)
+a11 = sum(testing$test.subscribe == testing$loan_status_recode)
+test.accuracy = a11 / length(pred.prob.test)
+
+# Display the accuracy
+kable(as.data.frame(test.accuracy), align = 'c')
+
+```
+Here in our accuracy test we find that it is accurate 86.2% of the time. This indicates there is no under-fitting for our model.
+
+### Local and Global ROC Metrics
+
+Using the optimal cut-off probability of 0.48, which was found above, we will now report the local measures using our testing data. This includes specificity and sensitivity based on each of these cut-offs for the 20 sub-intervals.
+
+```{r, warning=FALSE}
+## Define the cut-off probability for testing
+testing$test.subscribe = as.numeric(pred.prob.test > 0.48)
+
+### Components for defining confusion matrix elements
+p0.a0 = sum(testing$test.subscribe == 0 & testing$loan_status_recode == 0)  # True Negative (TN)
+p0.a1 = sum(testing$test.subscribe == 0 & testing$loan_status_recode == 1)  # False Negative (FN)
+p1.a0 = sum(testing$test.subscribe == 1 & testing$loan_status_recode == 0)  # False Positive (FP)
+p1.a1 = sum(testing$test.subscribe == 1 & testing$loan_status_recode == 1)  # True Positive (TP)
+
+### Sensitivity (True Positive Rate)
+sensitivity = p1.a1 / (p1.a1 + p0.a1)
+
+### Specificity (True Negative Rate)
+specificity = p0.a0 / (p0.a0 + p1.a0)
+
+### Precision (Positive Predictive Value)
+precision = p1.a1 / (p1.a1 + p1.a0)
+
+### Recall (Same as Sensitivity)
+recall = sensitivity
+
+### F1 Score
+F1 = 2 * precision * recall / (precision + recall)
+
+### Combine metrics into a table for better visualization
+metric.list = cbind(
+  sensitivity = sensitivity, 
+  specificity = specificity, 
+  precision = precision,
+  recall = recall,
+  F1 = F1
+)
+
+### Display the performance metrics
+kable(as.data.frame(metric.list), align = 'c', caption = "Local Performance Metrics for Credit Risk Model")
+
+```
+The sensitivity indicates the probability of those clients who are said to have defaulted on a loan out of those who actually did is about 59%. The specificity indicates the probability of those clients who are said to have not defaulted on a loan out of those who actually did not is about 94.8%. 
+
+### ROC Global Measure Analysis
+
+For the last part of this section, a ROC (receiver operating characteristic) curve will be plotted by selecting a sequence of decision thresholds and calculating corresponding sensitivity and specificity. 
+
+```{r, warning=FALSE}
+# Define a sequence of cut-off probabilities
+cut.off.seq = seq(0.01, 0.99, length = 100)
+
+# Initialize vectors to store sensitivity and specificity
+sensitivity.vec = NULL
+specificity.vec = NULL
+
+# Calculate sensitivity and specificity for each cut-off value
+for (i in 1:100) {
+  testing$test.subscribe = as.numeric(pred.prob.test > cut.off.seq[i])
+  
+  # Confusion matrix components
+  p0.a0 = sum(testing$test.subscribe == 0 & testing$loan_status_recode == 0)  # True Negative (TN)
+  p0.a1 = sum(testing$test.subscribe == 0 & testing$loan_status_recode == 1)  # False Negative (FN)
+  p1.a0 = sum(testing$test.subscribe == 1 & testing$loan_status_recode == 0)  # False Positive (FP)
+  p1.a1 = sum(testing$test.subscribe == 1 & testing$loan_status_recode == 1)  # True Positive (TP)
+  
+  # Calculate sensitivity and specificity
+  sensitivity.vec[i] = p1.a1 / (p1.a1 + p0.a1)
+  specificity.vec[i] = p0.a0 / (p0.a0 + p1.a0)
+}
+
+# Calculate 1 - specificity
+one.minus.spec = c(1, 1 - specificity.vec)
+sens.vec = c(1, sensitivity.vec)
+
+# Plot ROC curve
+par(pty = "s")   # Make a square plot
+plot(one.minus.spec, sens.vec, type = "l", xlim = c(0,1),
+     xlab = "1 - Specificity",
+     ylab = "Sensitivity",
+     main = "ROC Curve for Credit Risk Model",
+     lwd = 2,
+     col = "blue")
+
+# Add diagonal line representing random model performance
+segments(0, 0, 1, 1, col = "red", lty = 2, lwd = 2)
+
+# Calculate AUC (Area Under the Curve)
+AUC = round(sum(sens.vec * (one.minus.spec[-101] - one.minus.spec[-1])), 4)
+
+# Display AUC value on the plot
+text(0.8, 0.3, paste("AUC = ", AUC), col = "blue")
+
+```
+
+```{r, warning=FALSE}
+# Define a sequence of cut-off probabilities
+cut.off.seq = seq(0.01, 0.99, length = 100)
+
+# Initialize vectors to store sensitivity and specificity
+sensitivity.vec = NULL
+specificity.vec = NULL
+
+# Loop over each cut-off to calculate sensitivity and specificity
+for (i in 1:100) {
+  # Assign class labels based on the cut-off
+  testing$test.subscribe = as.numeric(pred.prob.test > cut.off.seq[i])
+  
+  # Confusion matrix components
+  p0.a0 = sum(testing$test.subscribe == 0 & testing$loan_status_recode == 0)  # True Negative (TN)
+  p0.a1 = sum(testing$test.subscribe == 0 & testing$loan_status_recode == 1)  # False Negative (FN)
+  p1.a0 = sum(testing$test.subscribe == 1 & testing$loan_status_recode == 0)  # False Positive (FP)
+  p1.a1 = sum(testing$test.subscribe == 1 & testing$loan_status_recode == 1)  # True Positive (TP)
+  
+  # Calculate sensitivity (True Positive Rate) and specificity (True Negative Rate)
+  sensitivity.vec[i] = p1.a1 / (p1.a1 + p0.a1)  # Sensitivity = TP / (TP + FN)
+  specificity.vec[i] = p0.a0 / (p0.a0 + p1.a0)  # Specificity = TN / (TN + FP)
+}
+
+# Calculate 1 - specificity for plotting the ROC curve
+one.minus.spec = c(1, 1 - specificity.vec)
+sens.vec = c(1, sensitivity.vec)
+
+# Plot the ROC curve
+par(pty = "s")   # Set square plot
+plot(one.minus.spec, sens.vec, type = "l", xlim = c(0, 1),
+     xlab = "1 - Specificity", 
+     ylab = "Sensitivity", 
+     main = "ROC Curve for Credit Risk Model",
+     lwd = 2, 
+     col = "blue")
+
+# Add diagonal line representing random model performance
+segments(0, 0, 1, 1, col = "red", lty = 2, lwd = 2)
+
+# Calculate the Area Under the Curve (AUC)
+AUC = round(sum(sens.vec * (one.minus.spec[-101] - one.minus.spec[-1])), 4)
+
+# Display the AUC value on the plot
+text(0.8, 0.3, paste("AUC = ", AUC), col = "blue")
+
+```
+
+The area under the curve (AUC) for the final model and the ROC curve and the full model is the same. Higher AUC indicates the model for that curve is better. Therefore, the reduced model is  the best model to usee=. 
+
+Looking at the initial and final models, they have the same curve since both models contain all feature variables used in the initial model. Out of these other two models, the final model works better compared to the initial model. It has been proven to be accurate in modeling performance, has high specificity, and its ROC curve is remaining away from the 45 degrees mark. Plus, the AUC is fairly high at .8871, even though the initial model has the same score.
+
+## Conclusion
+
+Overall in this project we have done some EDA with linear and logistical regression to answer two questions:
+  
+  1. What factors affect the interest rate of a loan?
+  2. If we can predict whether a client will default on a loan.
+  
+
+
+
+
+
+
+
