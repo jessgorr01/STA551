@@ -1,0 +1,1496 @@
+---
+title: 'Exploring Credit Risk for Lenders and Borrowers'
+author: " Jessica Gorr"
+date: "4/2/2025"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    number_sections: no
+    toc_collapsed: yes
+    code_folding: hide
+    code_download: yes
+    smooth_scroll: yes
+    theme: lumen
+  word_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    keep_md: yes
+  pdf_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    number_sections: no
+    fig_width: 3
+    fig_height: 3
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 22px;
+  font-weight: bold;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 18px;
+  font-weight: bold;
+  font-family: system-ui;
+  color: navy;
+  text-align: center;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+  font-weight: bold;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 18px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: center;
+    font-weight: bold;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 16px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+    font-weight: bold;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 14px;
+    font-family: "Gill Sans", sans-serif;
+    color: navy;
+    text-align: left;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 12px;
+    font-family: "Gill Sans", sans-serif;
+    color: darkred;
+    text-align: left;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+# code chunk specifies whether the R code, warnings, and output
+# will be included in the output files.
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+
+if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+}
+
+if (!require("caret")) {
+   install.packages("caret")
+   library(caret)
+}
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+  
+if (!require("patchwork")) {
+   install.packages("patchwork")
+   library(patchwork)
+}
+
+if (!require("reshape2")) {
+   install.packages("reshape2")
+   library(reshape2)
+}
+
+if (!require("tinytex")) {
+   install.packages("tinytex")
+   library(tinytex)
+}
+
+
+if (!require("neuralnet")) {
+   install.packages("neuralnet")
+   library(neuralnet)
+}
+
+if (!require("rpart")) {
+   install.packages("rpart")
+   library(rpart)
+}
+
+if (!require("rpart.plot")) {
+   install.packages("rpart.plot")
+   library(rpart.plot)
+}
+
+if (!require("pROC")) {
+   install.packages("pROC")
+   library(pROC)
+}
+
+if (!require("vip")) {
+   install.packages("vip")
+   library(vip)
+}
+
+if (!require("ggfortify")) {
+   install.packages("ggfortify")
+   library(vip)
+}
+
+if (!require("dbscan")) {
+   install.packages("dbscan")
+   library(dbscan)
+}
+if (!require("vcd")){
+  install.packages("vcd")
+  library(vcd)
+}
+
+if (!require("cluster")) {
+   install.packages("cluster")
+   library(cluster)
+}
+
+if (!require("factoextra")) {
+   install.packages("factoextra")
+   library(factoextra)
+}
+knitr::opts_chunk$set(echo = TRUE, # include code chunk in the
+ # output file
+ warningss = FALSE, # sometimes, you code may
+ # produce warnings messages,
+# you can choose to include
+# the warnings messages in
+ # the output file.
+ results = TRUE, # you can also decide whether
+ # to include the output
+# in the output file.
+ message = FALSE,
+ comment = NA
+)  
+```
+
+
+
+## 1. Introduction
+
+The Framingham Heart Study is a long-term prospective study of the etiology of cardiovascular disease among a population of free-living subjects in the community of Framingham, Massachusetts. The Framingham Heart Study was a landmark study in epidemiology in that it was the first prospective study of cardiovascular disease and identified the concept of risk factors and their joint effects FHS Longitudinal Data Document.
+
+
+The dataset is composed by 4240 rows (observations) and 16 columns (variables), which are described below:
+  
+
+1. sex: the gender of the observations. The variable is a binary named “male” in the dataset.
+2. age: Age at the time of medical examination in years.
+3. education: A categorical variable of the participants education, with the levels: Some high school (1), high school/GED (2), some college/vocational school (3), college (4)
+4. currentSmoker: Current cigarette smoking at the time of examinations
+5. cigsPerDay: Number of cigarettes smoked each day
+6. BPmeds: Use of Anti-hypertensive medication at exam
+7. prevalentStroke: Prevalent Stroke (0 = free of disease)
+8. prevalentHyp: Prevalent Hypertensive. Subject was defined as hypertensive if treated
+9. diabetes: Diabetic according to criteria of first exam treated
+10. totChol: Total cholesterol (mg/dL)
+11. sysBP: Systolic Blood Pressure (mmHg)
+12. diaBP: Diastolic blood pressure (mmHg)
+13. BMI: Body Mass Index, weight (kg)/height (m)^2
+14. heartRate: Heart rate (beats/minute)
+15. glucose: Blood glucose level (mg/dL)
+16. TenYearCHD(response variable): The 10 year risk of coronary heart disease(CHD).
+
+
+In this analysis, we will apply three regularized regression techniques—Lasso, Ridge, and Elastic Net—to predict glucose levels based on various health-related features. We will also use use regularized logistic regression to predict the ten year risk of of coronary heart decease. Finally we will build SVMs to explore the same questions. These methods are used to address potential overfitting in predictive models, especially when there are many predictor variables or multicollinearity among them. We will perform exploratory data analysis to find some key findings and questions that lie with the dataset. Then imputing missing variables using the MICE method will be used for featuring engineering and selecting the features to answer the two questions for linear and logistical modeling. 
+
+
+```{r, warnings=FALSE}
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+
+#Load the sample data
+hearts = read.csv("https://jessgorr01.github.io/STA551/sta552/project2/FraminghamHeartStudy.csv")
+
+
+head(hearts)
+```
+
+## 2. Exploratory Data Analysis
+
+The first step in the analysis is looking at all the individual features. In order to perform this action, all of the variables the the dataset will be converted to factors. this can be seen in the code chunk below. Following this, all missing data will be identified and a summary will be given to get a general overview of the credit risk data. Then visuals will be given to looking at the distributions of individual factors, and what insights can be discovered for future predicting and analysis.
+
+
+### Cleaning and first looks
+
+Below is a chunk to turn all the variables into factors.
+```{r, warnings=FALSE}
+
+library(dplyr)
+
+#colnames(hearts)
+
+# Convert all columns into factors
+hearts_factorized <- hearts %>%
+  mutate(
+    male = factor(male),                        # Convert gender to factor (binary)
+    age = factor(age),                        # Convert age to factor (though it’s continuous, we can treat it as a category if needed)
+    education = factor(education, levels = 1:4, labels = c("Some high school", "High school/GED", "Some college/vocational school", "College")),
+    currentSmoker = factor(currentSmoker, levels = c(0, 1), labels = c("No", "Yes")),
+    cigsPerDay = factor(cigsPerDay),          # Convert number of cigarettes per day to a factor
+    BPMeds = factor(BPMeds, levels = c(0, 1), labels = c("No", "Yes")),
+    prevalentStroke = factor(prevalentStroke, levels = c(0, 1), labels = c("No", "Yes")),
+    prevalentHyp = factor(prevalentHyp, levels = c(0, 1), labels = c("No", "Yes")),
+    diabetes = factor(diabetes, levels = c(0, 1), labels = c("No", "Yes")),
+    totChol = factor(totChol),                # Convert cholesterol to factor
+    sysBP = factor(sysBP),                    # Convert systolic blood pressure to factor
+    diaBP = factor(diaBP),                    # Convert diastolic blood pressure to factor
+    BMI = factor(BMI),                        # Convert BMI to factor
+    heartRate = factor(heartRate),            # Convert heart rate to factor
+    glucose = factor(glucose),                # Convert glucose to factor
+    TenYearCHD = factor(TenYearCHD)           # Convert response variable to factor (if it's binary)
+  )
+
+# Check the structure of the modified dataset
+#str(hearts_factorized)
+
+# Check the first few rows to confirm changes
+head(hearts_factorized)
+
+```
+The summary of our data, including missing values is below:
+```{r, warnings=FALSE}
+summary(hearts_factorized)
+```
+From the summary, there are multiple missing observations, so we must use multiple imputation in order to fill the gaps.
+
+### Multible Imputation
+
+In order to impute all the missing values in the data, multiple regression imputation will be done through the MICE library. Multiple Regression-based imputation is a method where missing numerical values are predicted using regression models based on other available features. This imputation method helps maintain relationships between variables and provides more accurate imputations compared to mode imputation for categorical variables and median/mean for numerical variables.
+
+
+```{r, warnings=FALSE}
+library(mice)
+
+hearts_clean <- hearts_factorized %>% drop_na()
+summary(hearts_clean)
+```
+
+Now that we have cleaned data, we can move onto looking at the distributions and feature engineering.
+
+
+
+### Distributions
+
+For this analysis, examining the distribution of the variables is crucial to ensure the reliability and accuracy of the modeling results. To start we will look at the numerical variables. The continuous variables such as age, cholesterol levels, blood pressure, BMI, and glucose levels need to be assessed for normality, as deviations from normal distribution might suggest the need for data transformation or non-parametric methods.
+
+Visualizations such as histograms for continuous variables and bar plots for categorical variables will help us identify any unusual patterns or skewed distributions, enabling us to apply the necessary preprocessing steps before fitting models like Lasso, Ridge, or Elastic Net regression. This ensures that the analysis is robust and the results are interpretable and reliable.
+```{r, warnings=FALSE}
+library(ggplot2)
+library(plotly)
+
+
+# Select only numerical variables
+numerical_vars <- hearts[, sapply(hearts, is.numeric)]
+
+# Create a list to store ggplot objects for each variable
+plot_list <- list()
+
+# Create a histogram for each numerical variable and store the plots in plot_list
+for (var in names(numerical_vars)) {
+  # Check if the variable is numeric before plotting
+  if (is.numeric(hearts_clean[[var]])) {
+    p <- ggplot(hearts_clean, aes_string(x = var)) +
+      geom_histogram(binwidth = 10, fill = "skyblue", color = "black", alpha = 0.7) +
+      theme_minimal() +
+      labs(title = paste("Distribution of", var), x = var, y = "Frequency") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  } else {
+    # If not numeric, use geom_bar (or other appropriate plots)
+    p <- ggplot(hearts_clean, aes_string(x = var)) +
+      geom_bar(fill = "skyblue", color = "black", alpha = 0.7) +
+      theme_minimal() +
+      labs(title = paste("Distribution of", var), x = var, y = "Frequency") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  }
+  
+  # Convert ggplot to plotly interactive plot
+  plot_list[[var]] <- ggplotly(p)
+}
+
+# Create individual interactive panels for each plot
+for (p in plot_list) {
+  print(p)
+}
+```
+
+(F......................)
+
+On the other hand, categorical variables like gender, smoking status, and education level should be checked for class imbalances, as significant imbalances could lead to biased model predictions. We will look at the categorical varibles belwo.
+
+  
+```{r, warnings=FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(plotly)
+
+
+# Select only categorical variables (factors or characters)
+categorical_vars <- hearts[, sapply(hearts, is.factor) | sapply(hearts, is.character)]
+
+# Create a list to store ggplot objects for each categorical variable
+plot_list_cat <- list()
+
+# Create a bar plot for each categorical variable and store the plots in plot_list_cat
+for (var in names(categorical_vars)) {
+  # Check if the variable is categorical
+  if (is.factor(hearts[[var]]) || is.character(hearts[[var]])) {
+    p <- ggplot(hearts, aes_string(x = var)) +
+      geom_bar(fill = "skyblue", color = "black", alpha = 0.7) +
+      theme_minimal() +
+      labs(title = paste("Distribution of", var), x = var, y = "Count") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    # Convert ggplot to plotly interactive plot
+    plot_list_cat[[var]] <- ggplotly(p)
+  }
+}
+
+# Create individual interactive panels for each categorical plot
+for (p in plot_list_cat) {
+  print(p)
+}
+```
+
+(.................
+  )
+  
+### Relationship between Features
+
+Now that we have looking the the features individually, we can do some analysis to find insights between the relationships with other features. This insights can provide clarity on what future analysis should focus the attention on. This exploratory analysis will perform three relationship between:
+  1. two numerical variables
+  2. two categorical variables
+  3. one numerical and one categorical variable.
+  
+All insights will be explain through visuals and text.
+
+First we will explore the relationship between two numerical variables, glucose levels and age.
+
+```{r, fig.align='center', warnings=FALSE}
+
+# If 'age' or 'glucose' are not numeric, convert them
+hearts_clean$age <- as.numeric(hearts_clean$age)
+hearts_clean$glucose <- as.numeric(hearts_clean$glucose)
+
+
+plot1_heart <- ggplot(hearts_clean, aes(x = age, y = glucose)) +
+  geom_point() +  
+  ylab("Glucose") +  
+  xlab("Age") +  
+  scale_x_continuous(limits = c(0, 100)) +  
+  theme_minimal()
+
+plot1_heart
+```
+From this scatterplot, there does not seem to be an obvious relationship between glucose and age. But, we must investigate further if there is some interaction with other varibles.
+
+Now looking at two categorical variables we can analyze them visually through a stacked bar plot. Here we will look at the relationship between ten year chd and education
+
+```{r, fig.align='center', warnings=FALSE}
+
+df_percent_hearts <- hearts_clean %>%
+  group_by(education, TenYearCHD) %>%
+  summarise(count = n()) %>%
+  group_by(education) %>%
+  mutate(percent = count / sum(count) * 100)
+
+# Create the stacked bar plot with percentages
+ggplot(df_percent_hearts, aes(x = education, y = percent, fill = TenYearCHD)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Stacked Bar Plot of Education by CHD",
+       x = "Education Level",
+       y = "Percentage") +
+  scale_fill_manual(values = c("red", "blue")) +  # Adjust colors as needed
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+```
+
+From the stacked bar chart, once again we can see that there is not a significant relationship between education and  and having CHD.
+
+
+Finally we will explore the relationship between one numerical variable, heartRate, with a categorical feature, TenYearCHD. This will be explored using boxplots.
+
+```{r, fig.align='center', warnings=FALSE}
+ggplot(hearts, aes(x = education, y = heartRate)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of Education and HeartRate",
+       x = "HeartRate",
+       y = "Education") +
+  theme_minimal()
+```
+
+Here we can see that are definitely some outliers with the data, but that could be due to other factors and must be explored further.
+
+
+## 3. Feauture Engineering
+
+
+  It was shown that there were some positively skewed distributions so these should be transformed using a log transformation. The code for these transformations and their resulting graphs are shown below.
+ 
+ 
+```{r, warnings=FALSE}
+
+# Convert relevant columns to numeric if they are factors
+hearts_clean$age <- as.numeric(as.character(hearts_clean$age))
+hearts_clean$totChol <- as.numeric(as.character(hearts_clean$totChol))
+hearts_clean$BMI <- as.numeric(as.character(hearts_clean$BMI))
+hearts_clean$glucose <- as.numeric(as.character(hearts_clean$glucose))
+hearts_clean$heartRate <- as.numeric(as.character(hearts_clean$heartRate))
+hearts_clean$diabetes <- as.numeric(as.character(hearts_clean$diabetes))
+
+# Apply transformations after ensuring the variables are numeric
+hearts_clean <- hearts_clean %>%
+  mutate(
+    age_log = log1p(age),         # log transformation of age
+    totChol_log = log1p(totChol), # log transformation of totChol
+    BMI_sqrt = sqrt(BMI),         # square root transformation of BMI
+    glucose_sqrt = sqrt(glucose), # square root transformation of glucose
+    heartRate_inv = 1 / (heartRate + 1),  # inverse transformation of heartRate
+    diabetes_inv = 1 / (diabetes + 1)     # inverse transformation of diabetes
+  )
+```
+
+
+
+## 4. Feature Selection and Creation
+
+Above we have identified categorical variables that should be regrouped to simplify our model. Regrouping simplifies our model, which improves our power.
+
+These can be shown being regrouped below:
+
+```{r, fig.align='center', warnings=FALSE}
+# Regrouping Age into categories
+hearts_filtered <- hearts_clean %>%
+  mutate(age_group = case_when(
+    age <= 30 ~ "Under 30",
+    age <= 50 ~ "30-50",
+    age <= 70 ~ "51-70",
+    age > 70 ~ "Above 70"
+  ))
+
+# Regrouping Education into categories (assuming you have education data coded with numbers or specific categories)
+hearts <- hearts_filtered %>%
+  mutate(education_group = case_when(
+    education == 1 ~ "Low",  # If "1" means low education level
+    education == 2 ~ "Medium",  # If "2" means medium education level
+    education == 3 ~ "High"   # If "3" means high education level
+  ))
+
+# Regrouping BP Medications (BPMeds) into categories
+hearts <- hearts_filtered %>%
+  mutate(BPMeds_group = case_when(
+    BPMeds == 0 ~ "No Medication",
+    BPMeds == 1 ~ "On Medication"
+  ))
+
+# Check the results
+head(hearts)
+
+```
+Now let's move in discrectizing some of our numerical variables. This is useful for multiple reasons, including improving model interpretability, handling non-linearity, and reducing noisy data. This os grouping continuous data. Some of the variables we are going to discretize are age, income and interest rates.
+
+Below is the code in order to discretize data
+
+```{r, fig.align='center', warnings=FALSE}
+hearts <- hearts_clean %>%
+  # Discretize Age
+  mutate(age_group = case_when(
+    age <= 30 ~ "Young",
+    age > 30 & age <= 50 ~ "Middle-Aged",
+    age > 50 ~ "Older",
+    TRUE ~ NA_character_  # Handle unexpected values
+  )) %>%
+
+  # Discretize BMI
+  mutate(bmi_group = case_when(
+    BMI < 18.5 ~ "Underweight",
+    BMI >= 18.5 & BMI < 25 ~ "Normal Weight",
+    BMI >= 25 & BMI < 30 ~ "Overweight",
+    BMI >= 30 ~ "Obese",
+    TRUE ~ NA_character_
+  )) %>%
+
+  # Discretize Glucose levels
+  mutate(glucose_group = case_when(
+    glucose < 100 ~ "Normal",
+    glucose >= 100 & glucose < 126 ~ "Pre-diabetic",
+    glucose >= 126 ~ "Diabetic",
+    TRUE ~ NA_character_
+  )) %>%
+
+  # Discretize Cholesterol levels (TotChol)
+  mutate(cholesterol_group = case_when(
+    totChol < 200 ~ "Desirable",
+    totChol >= 200 & totChol < 240 ~ "Borderline High",
+    totChol >= 240 ~ "High",
+    TRUE ~ NA_character_
+  ))
+
+# Convert new columns to factors
+
+# Check the first few rows
+head(hearts)
+```
+
+Finally, we want to filter all our data into  one cleaned dataset. We only want our discretized variables and those domain variables we discussed earlier. Below the code to filter the final dataset is seen below. This data is now able to be used for future analysis.
+
+```{r, fig.align='center', warnings=FALSE}
+library(dplyr)
+#colnames(hearts)
+# Filter the dataset to include only the specified variables
+hearts_final <- hearts %>%
+  select(male, age_log, education, currentSmoker, cigsPerDay, BPMeds, 
+         prevalentStroke, prevalentHyp, totChol_log, BMI_sqrt, glucose, heartRate_inv, TenYearCHD)
+
+# View the filtered dataset
+head(hearts_final)
+```
+
+## 5. Regularlized Regression
+
+Lasso (Least Absolute Shrinkage and Selection Operator) regression applies L1 regularization, encouraging sparsity in the model by driving some coefficients to zero, effectively performing feature selection. Ridge regression, on the other hand, uses L2 regularization, which penalizes large coefficients but does not eliminate variables. Elastic Net combines both L1 and L2 regularization, balancing the strengths of Lasso and Ridge. By comparing these three approaches, we can identify the most effective model for predicting glucose levels, while also improving model interpretability and generalizability.
+
+### Coefficant Path Analysis
+
+Coefficient path analysis is a powerful technique used to visualize and interpret how the coefficients of a regression model change as a regularization parameter (such as lambda in Lasso, Ridge, or Elastic Net regression) is varied. This method provides insight into the stability of each predictor variable's contribution to the model, helping to identify which features are most influential in predicting the target variable. 
+
+```{r, warnings=FALSE}
+library(glmnet)
+library(caret)
+
+# Prepare the data
+# Remove rows with missing target variable 'glucose'
+hearts_final <- hearts_final[!is.na(hearts_final$glucose), ]
+
+# Redefine X (predictors) and y (target)
+X <- hearts_final[, -which(names(hearts_final) == "glucose")]  # All predictors except 'glucose'
+y <- hearts_final$glucose  # Target variable 'glucose'
+
+# Split the data into training and testing sets (80% train, 20% test)
+set.seed(1234)  # Set seed for reproducibility
+train_index <- createDataPartition(y, p = 0.8, list = FALSE)
+X_train <- X[train_index, ]
+X_test <- X[-train_index, ]
+y_train <- y[train_index]
+y_test <- y[-train_index]
+
+# Ensure categorical variables are converted to numeric (dummy/indicator variables)
+# Convert X_train and X_test to numeric matrix with model.matrix
+X_train <- model.matrix(~ . - 1, data = as.data.frame(X_train))  # Remove intercept (-1)
+X_test <- model.matrix(~ . - 1, data = as.data.frame(X_test))  # Remove intercept (-1)
+
+# Align columns of X_train and X_test to have the same variables
+# This ensures that both training and testing datasets have the same set of columns
+X_test <- X_test[, colnames(X_train), drop = FALSE]
+
+# Fit Lasso (alpha = 1), Ridge (alpha = 0), and Elastic Net (alpha = 0.5)
+fit_lasso <- glmnet(X_train, y_train, alpha = 1)
+fit_ridge <- glmnet(X_train, y_train, alpha = 0)
+fit_elastic_net <- glmnet(X_train, y_train, alpha = 0.5)
+
+# Cross-validation for Lasso, Ridge, and Elastic Net
+cv_lasso <- cv.glmnet(X_train, y_train, alpha = 1)
+cv_ridge <- cv.glmnet(X_train, y_train, alpha = 0)
+cv_elastic_net <- cv.glmnet(X_train, y_train, alpha = 0.5)
+
+# Plot cross-validation results
+par(mfrow = c(1, 3))  # Arrange plots in a row
+plot(cv_lasso)
+plot(cv_ridge)
+plot(cv_elastic_net)
+
+# Best lambda for each model
+lambda_lasso <- cv_lasso$lambda.min
+lambda_ridge <- cv_ridge$lambda.min
+lambda_elastic_net <- cv_elastic_net$lambda.min
+
+# Predict using the best lambda from each model
+pred_lasso <- predict(fit_lasso, X_test, s = lambda_lasso, type = "response")
+pred_ridge <- predict(fit_ridge, X_test, s = lambda_ridge, type = "response")
+pred_elastic_net <- predict(fit_elastic_net, X_test, s = lambda_elastic_net, type = "response")
+
+```
+
+We can see that there are some insignificant predictor variables, and they should be dropped from the model. Using the step() function, we will now find  the final model. The final best model will be a model that is between the full and reduced models.
+
+```{r, warnings=FALSE}
+library(glmnet)
+
+# Plot the coefficient path
+par(mar=c(5,4,6,3))  # Adjust margins to fit the title
+plot(fit_lasso, xvar = "lambda", label = TRUE, 
+     lwd = 1.5, 
+     main = "Coefficient Path Analysis: LASSO (Hearts Dataset)",
+     cex.main = 0.9, 
+     col = rainbow(ncol(X)))  # Color for each coefficient
+abline(v = 1, col = "purple", lty = 4, lwd = 2)  # Vertical line for lambda = 1
+abline(v = -1, col = "steelblue", lty = 2, lwd = 2)  # Vertical line for lambda = -1
+```
+```{r, warnings=FALSE}
+par(mar=c(5,4,6,3))
+##
+plot(cv_lasso, main = "RMSE Plot: LASSO",
+     cex.main = 0.9)
+
+# Calculate RMSE for each model
+rmse_lasso <- sqrt(mean((pred_lasso - y_test)^2))
+rmse_ridge <- sqrt(mean((pred_ridge - y_test)^2))
+rmse_elastic_net <- sqrt(mean((pred_elastic_net - y_test)^2))
+
+cat("RMSE for Lasso: ", rmse_lasso, "\n")
+cat("RMSE for Ridge: ", rmse_ridge, "\n")
+cat("RMSE for Elastic Net: ", rmse_elastic_net, "\n")
+```
+
+### Tuning Parameter
+
+Tuning the regularization parameter, lambda, is a crucial step in the process of fitting models these models. This parameter controls the strength of the penalty applied to the model, helping to avoid overfitting and improving model generalization. A large lambda value leads to greater regularization, resulting in smaller coefficients, while a smaller lambda value allows the model to fit the training data more closely, potentially leading to overfitting.
+
+To identify the best lambda for each model, we use cross-validation (via the cv.glmnet function), which evaluates the model performance across different values of lambda. The process involves splitting the data into training and validation sets multiple times and calculating the prediction error for each candidate lambda. The optimal lambda is the one that minimizes the cross-validation error, ensuring that the model generalizes well to unseen data.
+```{r, warnings=FALSE}
+library(glmnet)
+library(caret)
+library(pander)
+
+
+
+# Define the features (predictors) and target
+X <- as.matrix(hearts_final[, -which(names(hearts_final) == "glucose")])  # All features except target 'glucose'
+y <- hearts_final$glucose  # Target variable 'glucose'
+
+# Split the data into training and testing sets
+set.seed(123)  # Set seed for reproducibility
+train_index <- createDataPartition(y, p = 0.8, list = FALSE)
+X_train <- X[train_index, ]
+X_test <- X[-train_index, ]
+y_train <- y[train_index]
+y_test <- y[-train_index]
+
+# Cross-validation to find the best lambda for each model
+cv_lasso <- cv.glmnet(X_train, y_train, alpha = 1)
+cv_ridge <- cv.glmnet(X_train, y_train, alpha = 0)
+cv_elastic_net <- cv.glmnet(X_train, y_train, alpha = 0.5)
+
+# Extract the best lambda values for each model
+best.lasso.lambda <- cv_lasso$lambda.min
+best.ridge.lambda <- cv_ridge$lambda.min
+best.elastic.net.lambda <- cv_elastic_net$lambda.min
+
+# Lasso Regression (L1 Regularization)
+lasso_model.opt <- glmnet(X_train, y_train, alpha = 1, lambda = best.lasso.lambda)
+lasso_predictions.opt <- predict(lasso_model.opt, s = best.lasso.lambda, newx = X_test)
+lasso_rmse.opt <- sqrt(mean((y_test - lasso_predictions.opt)^2))
+
+# Ridge Regression (L2 Regularization)
+ridge_model.opt <- glmnet(X_train, y_train, alpha = 0, lambda = best.ridge.lambda)
+ridge_predictions.opt <- predict(ridge_model.opt, s = best.ridge.lambda, newx = X_test)
+ridge_rmse.opt <- sqrt(mean((y_test - ridge_predictions.opt)^2))
+
+# Elastic Net (Combination of L1 and L2)
+elastic_net_model.opt <- glmnet(X_train, y_train, alpha = 0.5, lambda = best.elastic.net.lambda)
+elastic_net_predictions.opt <- predict(elastic_net_model.opt, s = best.elastic.net.lambda, newx = X_test)
+elastic_net_rmse.opt <- sqrt(mean((y_test - elastic_net_predictions.opt)^2))
+
+# Combine RMSE values for comparison
+RMSE.opt = cbind(LASSO.opt = lasso_rmse.opt, 
+                 Ridge.opt = ridge_rmse.opt, 
+                 Elasticnet.opt = elastic_net_rmse.opt)
+
+# Display the results using pander
+pander(RMSE.opt)
+```
+
+
+
+### Extracting Final Model and Results 
+
+
+The resulting LASSO regression equation is given by
+
+```{r, warnings=FALSE}
+# Extract coefficients for the best lambda
+best_lambda.lasso <- cv_lasso$lambda.min
+coefficients.lasso <- coef(cv_lasso, s = best_lambda.lasso)
+
+# Extract the intercept and betas
+intercept.lasso <- coefficients.lasso[1]
+betas.lasso <- coefficients.lasso[-1]
+
+# Reconstruct the model equation as a string
+model_equation <- paste("Model equation: y =", round(intercept.lasso, 4), 
+                        "+", paste(round(betas.lasso, 4), 
+                                   colnames(X), 
+                                   sep = "*", collapse = " + "), "\n")
+
+# Print the model equation
+cat(model_equation)
+```
+
+
+The resulting Ridge regression equation is given by
+
+```{r, warnings=FALSE}
+# Extract coefficients for the best lambda
+best_lambda.ridge <- cv_ridge$lambda.min
+coefficients.ridge <- coef(cv_ridge, s = best_lambda.ridge)
+
+# Extract the intercept and betas
+intercept.ridge <- coefficients.ridge[1]
+betas.ridge <- coefficients.ridge[-1]
+
+# Reconstruct the model equation as a string
+model_equation_ridge <- paste("Model equation: y =", round(intercept.ridge, 4), 
+                              "+", paste(round(betas.ridge, 4), 
+                                         colnames(X), 
+                                         sep = "*", collapse = " + "), "\n")
+
+# Print the model equation
+cat(model_equation_ridge)
+
+```
+
+
+The resulting ElasticNet regression equation is given by
+
+```{r, warnings=FALSE}
+## Elastic Net
+# Extract coefficients for the best lambda
+best_lambda.net <- cv_elastic_net$lambda.min
+coefficients.net <- coef(cv_elastic_net, s = best_lambda.net)
+
+# Extract the intercept and betas
+intercept.net <- coefficients.net[1]
+betas.net <- coefficients.net[-1]
+
+# Reconstruct the model equation as a string
+model_equation_net <- paste("Model equation: y =", round(intercept.net, 4), 
+                            "+", paste(round(betas.net, 4), 
+                                       colnames(X), 
+                                       sep = "*", collapse = " + "), "\n")
+
+# Print the model equation
+cat(model_equation_net)
+
+```
+
+
+Based on the RMSE (Root Mean Squared Error) values from the cross-validation results, the model with the lowest RMSE value indicates the best predictive performance for the glucose variable in the hearts_final dataset. In this case, with the RMSE of 22.21, the best model to use the Ridge Regression.
+
+
+
+## 6.Regularized Logistical Regression
+
+Regularized logistic regression is a powerful statistical technique used for binary classification tasks, where the goal is to predict the probability of a binary outcome (Having coronary heart Disease). Unlike traditional logistic regression, regularized logistic regression incorporates penalty terms (L1 or L2 regularization) to control the complexity of the model, preventing overfitting and improving generalization to unseen data.
+
+Below is the code for the full logistical model
+
+```{r, fig.align='center', warnings=FALSE}
+library(glmnet)
+library(caret)
+library(pander)
+
+# Define the features (predictors) and target
+X <- as.matrix(hearts_final[, -which(names(hearts_final) == "glucose")])
+# Predictors
+y <- hearts_final$TenYearCHD  # Binary target variable (TenYearCHD)
+
+# Ensure target variable is binary (0 or 1)
+y <- ifelse(y == 1, 1, 0)
+
+# Split the data into training and testing sets
+set.seed(123)
+trainIndex <- createDataPartition(y, p = 0.8, list = FALSE)
+X_train <- X[trainIndex, ]
+X_test <- X[-trainIndex, ]
+y_train <- y[trainIndex]
+y_test <- y[-trainIndex]
+
+####################
+# Fit LASSO model (L1 Regularization)
+####################
+lasso_model <- glmnet(X_train, y_train, family = "binomial", alpha = 1)
+
+# Cross-validation to find the optimal lambda for Lasso
+cv_lasso <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 1)
+lambda_lasso <- cv_lasso$lambda.min
+print(lambda_lasso)
+
+# Refit the model with the optimal lambda
+lasso_model_opt <- glmnet(X_train, y_train, family = "binomial", alpha = 1, lambda = lambda_lasso)
+
+# Make predictions on the test set
+lasso_predictions <- predict(lasso_model_opt, s = lambda_lasso, newx = X_test, type = "response")
+
+# Convert predicted probabilities to binary predictions (threshold 0.5)
+lasso_binary_predictions <- ifelse(lasso_predictions > 0.5, 1, 0)
+
+# Evaluate the model using confusion matrix
+confusion_matrix_lasso <- confusionMatrix(factor(lasso_binary_predictions), factor(y_test))
+print(confusion_matrix_lasso)
+
+# Print Lasso model coefficients
+coef(lasso_model_opt, s = lambda_lasso)
+
+####################
+# Fit Ridge model (L2 Regularization)
+####################
+ridge_model <- glmnet(X_train, y_train, family = "binomial", alpha = 0)
+
+# Cross-validation to find the optimal lambda for Ridge
+cv_ridge <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 0)
+lambda_ridge <- cv_ridge$lambda.min
+print(lambda_ridge)
+
+# Refit the model with the optimal lambda
+ridge_model_opt <- glmnet(X_train, y_train, family = "binomial", alpha = 0, lambda = lambda_ridge)
+
+# Make predictions on the test set
+ridge_predictions <- predict(ridge_model_opt, s = lambda_ridge, newx = X_test, type = "response")
+
+# Convert predicted probabilities to binary predictions (threshold 0.5)
+ridge_binary_predictions <- ifelse(ridge_predictions > 0.5, 1, 0)
+
+# Evaluate the model using confusion matrix
+confusion_matrix_ridge <- confusionMatrix(factor(ridge_binary_predictions), factor(y_test))
+print(confusion_matrix_ridge)
+
+# Print Ridge model coefficients
+coef(ridge_model_opt, s = lambda_ridge)
+
+####################
+# Fit Elastic Net model (L1 and L2 Regularization)
+####################
+elastic_model <- glmnet(X_train, y_train, family = "binomial", alpha = 0.5)
+
+# Cross-validation to find the optimal lambda for Elastic Net
+cv_elastic <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 0.5)
+lambda_elastic <- cv_elastic$lambda.min
+print(lambda_elastic)
+
+# Refit the model with the optimal lambda
+elastic_model_opt <- glmnet(X_train, y_train, family = "binomial", alpha = 0.5, lambda = lambda_elastic)
+
+# Make predictions on the test set
+elastic_predictions <- predict(elastic_model_opt, s = lambda_elastic, newx = X_test, type = "response")
+
+# Convert predicted probabilities to binary predictions (threshold 0.5)
+elastic_binary_predictions <- ifelse(elastic_predictions > 0.5, 1, 0)
+
+# Evaluate the model using confusion matrix
+confusion_matrix_elastic <- confusionMatrix(factor(elastic_binary_predictions), factor(y_test))
+print(confusion_matrix_elastic)
+
+# Print Elastic Net model coefficients
+coef(elastic_model_opt, s = lambda_elastic)
+```
+
+
+## Optimal Cutoff Probability
+
+In binary classification, the model outputs probabilities rather than direct class labels. These probabilities represent the likelihood of the event (in this case, the occurrence of heart disease in 10 years). Typically, a threshold (cutoff) is applied to convert these continuous probabilities into binary outcomes (e.g., 0 or 1).
+
+The optimal cutoff probability is determined by maximizing the model's performance based on the specific goals of the analysis.  By adjusting the cutoff threshold, we can find a balance that maximizes model performance.
+
+```{r, warnings=FALSE}
+#############################
+# Predict on the test set: type = "response" gives probabilities
+predict_lasso <- predict(lasso_model_opt, newx = X_test, type = "response")
+predict_ridge <- predict(ridge_model_opt, newx = X_test, type = "response")
+predict_elastic <- predict(elastic_model_opt, newx = X_test, type = "response")
+
+###########################################
+## Optimal cutoff probability determination
+seq.cut <- seq(0, 1, length = 50)  # Sequence of cutoff values
+acc.lasso <- NULL
+acc.ridge <- NULL
+acc.elastic <- NULL
+
+for (i in 1:length(seq.cut)) {
+  # Convert probabilities to binary predictions based on the cutoff value
+  predy.lasso <- ifelse(predict_lasso > seq.cut[i], 1, 0)
+  predy.ridge <- ifelse(predict_ridge > seq.cut[i], 1, 0)
+  predy.elastic <- ifelse(predict_elastic > seq.cut[i], 1, 0)
+  
+  # Calculate accuracy for each model
+  acc.lasso[i] <- mean(y_test == predy.lasso)
+  acc.ridge[i] <- mean(y_test == predy.ridge)
+  acc.elastic[i] <- mean(y_test == predy.elastic)
+}
+
+## Optimal cut-off: average cutoff if multiple cutoffs give max accuracy
+opt.cut.lasso <- mean(seq.cut[which(acc.lasso == max(acc.lasso))])
+opt.cut.ridge <- mean(seq.cut[which(acc.ridge == max(acc.ridge))])
+opt.cut.elastic <- mean(seq.cut[which(acc.elastic == max(acc.elastic))])
+
+## Data frame to store accuracies and cutoff probabilities
+acc.data <- data.frame(
+  prob = rep(seq.cut, 3),
+  acc = c(acc.lasso, acc.ridge, acc.elastic),
+  group = c(rep("lasso", 50), rep("ridge", 50), rep("elastic", 50))
+)
+
+# Plot accuracy vs. cutoff for each model
+library(ggplot2)
+ggplot(acc.data, aes(x = prob, y = acc, color = group)) +
+  geom_line() +
+  labs(title = "Accuracy vs. Cutoff for LASSO, Ridge, and Elastic Net",
+       x = "Cutoff Probability", y = "Accuracy") +
+  theme_minimal()
+
+# Print the optimal cutoff probabilities
+cat("Optimal cutoff for LASSO: ", opt.cut.lasso, "\n")
+cat("Optimal cutoff for Ridge: ", opt.cut.ridge, "\n")
+cat("Optimal cutoff for Elastic Net: ", opt.cut.elastic, "\n")
+```
+Here we can see that each model has a different optimal cutoff. 
+```{r, warnings=FALSE}
+
+gg.acc <- ggplot(data = acc.data, aes(x=prob, y = acc, color = group)) +
+  geom_line() +
+  annotate("text", x = 0.6, y = 0.45, 
+           label = paste("LASSO cutoff: ", round(opt.cut.lasso,5), "Accuracy: ", round(max(acc.lasso),5), 
+                         "\nRidge cutoff: ", round(opt.cut.ridge,5), "Accuracy: ", round(max(acc.ridge),5), 
+                         "\nElastic cutoff: ", round(opt.cut.elastic,5), "Accuracy: ", round(max(acc.elastic),5)), 
+           size = 3, 
+           color = "navy") +
+  ggtitle("Cut-off Probability vs Accuracy") +
+  labs(x = "cut-off Probability", 
+       y = "accuracy", color = "Group") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+##
+ggplotly(gg.acc)
+```
+Now using these cutoff we can predict and assign labels.
+
+```{r, warnings=FALSE}
+
+#######################################
+## using the optimal cutoff probability to predict labels
+## 
+pred.lab.lasso <- ifelse(predict_lasso >opt.cut.lasso, 1, 0)
+pred.lab.ridge<- ifelse(predict_ridge >opt.cut.ridge, 1, 0)
+pred.lab.elastic<- ifelse(predict_elastic >opt.cut.elastic, 1, 0)
+
+
+#################################
+# Convert predictions to factors
+pred.lab.lasso.fct <- as.factor(pred.lab.lasso)
+pred.lab.ridge.fct <- as.factor(pred.lab.ridge)
+pred.lab.elastic.fct <- as.factor(pred.lab.elastic)
+
+# Convert actual values to factors
+y_test <- as.factor(y_test)
+
+# Confusion Matrix and Metrics
+confusion.lasso <- confusionMatrix(pred.lab.lasso.fct, y_test)
+confusion.ridge<- confusionMatrix(pred.lab.ridge.fct, y_test)
+confusion.elastic <- confusionMatrix(pred.lab.elastic.fct, y_test)
+
+## Commonly used performance measured
+PerfMeasures <- cbind(lasso = confusion.lasso$byClass, 
+                     ridge = confusion.ridge$byClass, 
+                     elastic = confusion.elastic$byClass)
+pander(PerfMeasures)
+
+```
+### ROC Analysis
+
+The ROC curve is a graphical representation that illustrates the trade-off between sensitivity (true positive rate) and 1-specificity (false positive rate) across different threshold values.  A model that performs well will have a ROC curve that rises sharply towards the top-left corner, indicating high sensitivity and low false positive rate. The Area Under the Curve (AUC) is another important metric derived from the ROC analysis, which quantifies the overall ability of the model to discriminate between the positive and negative classes. An AUC value closer to 1 indicates excellent model performance, while a value closer to 0.5 suggests the model has no discriminatory power.
+```{r, fig.align= 'center', fig.cap="5-fold CV performance plot", warnings=FALSE}
+library(pROC)
+
+# Predicted probabilities for each model
+prob_lasso <- predict(lasso_model_opt, newx = X_test, type = "response")
+prob_ridge <- predict(ridge_model_opt, newx = X_test, type = "response")
+prob_elastic <- predict(elastic_model_opt, newx = X_test, type = "response")
+
+# Compute ROC curves
+roc_lasso <- roc(y_test, prob_lasso)
+roc_ridge <- roc(y_test, prob_ridge)
+roc_elastic <- roc(y_test, prob_elastic)
+
+# Compute AUC values
+auc_lasso <- auc(roc_lasso)
+auc_ridge <- auc(roc_ridge)
+auc_elastic <- auc(roc_elastic)
+
+## Extract sensitivity and specificity values
+sen.lasso <- roc_lasso$sensitivities
+spe.lasso <- roc_lasso$specificities
+
+sen.ridge <- roc_ridge$sensitivities
+spe.ridge <- roc_ridge$specificities
+
+sen.elastic <- roc_elastic$sensitivities
+spe.elastic <- roc_elastic$specificities
+
+# Plot the ROC curves
+plot(1 - spe.lasso, sen.lasso, 
+     type = "l", col = "green", 
+     xlim = c(0,1),
+     xlab = "1 - Specificity",
+     ylab = "Sensitivity",
+     main = "ROC Curves for LASSO, Ridge, and Elastic Net")
+
+lines(1 - spe.ridge, sen.ridge, col = "orange")
+lines(1 - spe.elastic, sen.elastic, col = "purple")
+abline(0, 1, type = "l", lty = 2, col = "steelblue", lwd = 1)  # Diagonal line
+
+# Add legend
+legend("bottomright", legend = c(paste("LASSO (AUC =", round(auc_lasso, 3), ")"),
+                                 paste("Ridge (AUC =", round(auc_ridge, 3), ")"),
+                                 paste("Elastic Net (AUC =", round(auc_elastic, 3), ")")),
+       col = c("green", "orange", "purple"), lty = 1, cex = 0.8, bty = "n")
+
+
+colnames(hearts_final)
+```
+The above figure indicates that the optimal cut-off probability that yields the best accuracy is 0.48.
+
+
+
+
+## 7.Linear and RBF SVMs
+
+We will fit Support Vector Regression (SVR) models with both linear and radial basis function (RBF) kernels, as well as an ordinary least squares (OLS) regression model (with step-wise variable selection). The performance of these three regression models will be evaluated using mean squared error (MSE) and mean absolute error (MAE). This will be used to predict glucose levels in patients.
+
+```{r, warnings=FALSE}
+# Load required libraries
+library(e1071)
+
+# Assuming hearts_final is your dataset
+# Check for missing values and remove rows with NA values
+X <- hearts_final[, -which(names(hearts_final) == "glucose")]  # All features except 'glucose'
+y <- hearts_final$glucose  # Target variable 'glucose'
+
+# Remove rows with NA values from both predictors (X) and target (y)
+complete_data <- complete.cases(X, y)
+X <- X[complete_data, ]
+y <- y[complete_data]
+
+# Ensure all predictor columns are numeric
+X[] <- lapply(X, as.numeric)  # Convert all columns in X to numeric
+
+# Scale the predictors (optional but helps in SVMs)
+X <- scale(X)
+
+# Split the data into training and test sets (80-20 split)
+set.seed(123)  # For reproducibility
+train.index <- sample(1:nrow(X), 0.8 * nrow(X))
+X.train <- X[train.index, ]
+y.train <- y[train.index]
+X.test <- X[-train.index, ]
+y.test <- y[-train.index]
+
+# Set up the grid for hyperparameters (RBF kernel)
+tune.grid <- expand.grid(
+  epsilon = seq(0.1, 0.5, 0.1),
+  cost = c(1, 10, 100),
+  gamma = c(0.01, 0.1, 1)
+)
+
+# Set up cross-validation control (5-fold cross-validation)
+tune.control <- tune.control(
+  cross = 5,  # 5-fold cross-validation
+  nrepeat = 1  # Number of repetitions
+)
+
+# Perform grid search for hyperparameter tuning: RBF kernel
+tune.RBF <- tune(
+  svm, 
+  train.x = X.train, 
+  train.y = y.train, 
+  ranges = list(epsilon = seq(0.1, 0.5, 0.1), 
+                cost = c(1, 10, 100), 
+                gamma = c(0.01, 0.1, 1)),  # Hyperparameters for RBF kernel
+  tunecontrol = tune.control(sampling = "cross", cross = 5)  # 5-fold cross-validation
+)
+
+# Check the best parameters found
+print(tune.RBF$best.parameters)
+
+# Train the final model using the best parameters for RBF kernel
+final.RBF <- svm(
+  X.train, y.train, 
+  type = "eps-regression",  # "eps-regression" for SVR
+  kernel = "radial", 
+  epsilon = tune.RBF$best.parameters$epsilon, 
+  cost = tune.RBF$best.parameters$cost, 
+  gamma = tune.RBF$best.parameters$gamma
+)
+
+# Make predictions on the test set
+pred.RBF <- predict(final.RBF, X.test)
+
+# Evaluate performance (Mean Squared Error and Mean Absolute Error)
+mse.RBF <- mean((y.test - pred.RBF)^2)    # Mean squared error
+mae.RBF <- mean(abs(y.test - pred.RBF))   # Mean absolute error
+
+# Print the performance metrics
+print(paste("MSE for RBF Kernel:", mse.RBF))
+print(paste("MAE for RBF Kernel:", mae.RBF))
+
+# Optionally, you can perform similar steps for the linear kernel (if needed)
+# Perform grid search for hyperparameter tuning: Linear kernel
+tune.lin <- tune(
+  svm, 
+  train.x = X.train, 
+  train.y = y.train, 
+  ranges = list(epsilon = seq(0.1, 0.5, 0.1), 
+                cost = c(1, 10, 100)),  # Hyperparameters for Linear kernel
+  tunecontrol = tune.control(sampling = "cross", cross = 5)  # 5-fold cross-validation
+)
+
+# Check the best parameters for Linear kernel
+print(tune.lin$best.parameters)
+
+# Train the final model using the best parameters for Linear kernel
+final.lin <- svm(
+  X.train, y.train, 
+  type = "eps-regression",  # "eps-regression" for SVR
+  kernel = "linear", 
+  epsilon = tune.lin$best.parameters$epsilon, 
+  cost = tune.lin$best.parameters$cost
+)
+
+# Make predictions on the test set
+pred.lin <- predict(final.lin, X.test)
+
+# Evaluate performance for Linear kernel
+mse.lin <- mean((y.test - pred.lin)^2)    # Mean squared error
+mae.lin <- mean(abs(y.test - pred.lin))   # Mean absolute error
+
+# Print the performance metrics for Linear kernel
+print(paste("MSE for Linear Kernel:", mse.lin))
+print(paste("MAE for Linear Kernel:", mae.lin))
+
+```
+```{r, warnings=FALSE}
+# Load necessary libraries
+library(MASS)  # For stepAIC()
+
+# Fit the initial OLS model (using all predictors) 
+lse.fit <- lm(glucose ~ ., data = hearts_final)
+
+# Apply stepwise AIC model selection (both directions: forward and backward)
+AIC.fit <- stepAIC(lse.fit, direction = "both", trace = FALSE)
+
+# Split the data into features (X) and target (y) (80-20 split as before)
+set.seed(123)
+train.index <- sample(1:nrow(hearts_final), 0.8 * nrow(hearts_final))
+X.train <- hearts_final[train.index, -which(names(hearts_final) == "glucose")]
+y.train <- hearts_final$glucose[train.index]
+X.test <- hearts_final[-train.index, -which(names(hearts_final) == "glucose")]
+y.test <- hearts_final$glucose[-train.index]
+
+# Make predictions on the test set using the stepwise-selected model
+pred.lse <- predict(AIC.fit, newdata = X.test)
+
+# Calculate Mean Squared Error (MSE) and Mean Absolute Error (MAE)
+mse.lse <- mean((y.test - pred.lse)^2)    # Mean squared error
+mae.lse <- mean(abs(y.test - pred.lse))   # Mean absolute error
+
+# Print the performance metrics
+print(paste("MSE for OLS model:", mse.lse))
+print(paste("MAE for OLS model:", mae.lse))
+
+# Diagnostic plots for the final model
+par(mfrow = c(2, 2), mar = c(2, 2, 2, 2))
+plot(AIC.fit)
+
+
+```
+
+The residual plot (top left panel) shows no curve patterns in the data, meaning that it does have a linear regression. Therefore, we do not need to refit the model. 
+
+Next, we calculate the predictive errors of the candidate models in the following table.
+
+```{r, warnings=FALSE}
+Performance <- data.frame(RBF.SVR=c(mse.RBF, mae.RBF),
+                          Linear.SVR = c(mse.lin, mae.lin))
+row.names(Performance) <- c("MSE", "MAE")
+##
+pander(Performance)
+
+```
+The above predictive errors show that the linear support vector machine outperforms linear kernel based SVR regression models.
+
+## SVM for Binary Classifcation
+
+When it comes to answering the question if someone will have coronary heart disease in ten years (TenYearsCHD) we can use a SVM to find a hyperplane that maximizes the margin between the two classes.
+
+
+```{r, warnings=FALSE}
+# Load necessary libraries
+library(e1071)    # For svm()
+
+# Two-way data splitting: Train (70%) and Test (30%)
+set.seed(123)  # For reproducibility
+index <- sample(1:nrow(hearts_final), 0.7 * nrow(hearts_final))
+train.data <- hearts_final[index, ]
+test.data <- hearts_final[-index, ]
+
+# Set up custom cross-validation control (5-fold cross-validation)
+tune_control <- tune.control(
+  cross = 5,  # Use 5-fold cross-validation
+  nrepeat = 1 # Number of repetitions (for repeated cross-validation)
+)
+
+# Perform a grid search for the best hyperparameters for the RBF kernel
+tune.RBF <- tune(
+  svm,             # SVM algorithm for tuning
+  TenYearCHD ~ .,  # Use TenYearCHD as the target variable
+  data = train.data,
+  kernel = "radial",  # Radial basis function kernel
+  ranges = list(
+    cost = 10^(-1:2),   # Tuning hyperparameter C in the loss function
+    gamma = c(0.1, 0.5, 1, 2)  # Hyperparameter gamma for the RBF kernel
+  ),
+  tunecontrol = tune_control  # Use the defined cross-validation settings
+)
+
+# Print the tuning results for inspection
+# print(tune.RBF)
+
+# Extract the best model and hyperparameters
+best.RBF <- tune.RBF$best.model
+best.cost.RBF <- best.RBF$cost
+best.gamma.RBF <- best.RBF$gamma
+
+# Print the best hyperparameters
+cat("Best Cost:", best.cost.RBF, "\n")
+cat("Best Gamma:", best.gamma.RBF, "\n")
+
+# Train the final SVM model with the best hyperparameters
+final.RBF.class <- svm(
+  TenYearCHD ~ .,    # Target variable: TenYearCHD
+  data = train.data,  # Training data
+  kernel = "radial",  # Radial kernel
+  cost = best.cost.RBF,  # Best cost from tuning
+  gamma = best.gamma.RBF  # Best gamma from tuning
+)
+
+# Print the final model for inspection
+# print(final.RBF.class)
+
+# Make predictions on the test set
+pred.RBF.class <- predict(final.RBF.class, test.data, type = "class")
+
+# Evaluate the model using a confusion matrix
+confusion.matrix.RBF <- table(Predicted = pred.RBF.class, Actual = test.data$TenYearCHD)
+
+# Print the confusion matrix
+print(confusion.matrix.RBF)
+
+# Optionally, calculate accuracy or other metrics (e.g., precision, recall)
+accuracy <- sum(diag(confusion.matrix.RBF)) / sum(confusion.matrix.RBF)
+cat("Accuracy:", accuracy, "\n")
+
+```
+```{r, warnings=FALSE}
+
+# Calculate accuracy
+accuracy <- sum(diag(confusion.matrix.RBF)) / sum(confusion.matrix.RBF)
+cat("\n\n Accuracy:", accuracy, "\n")
+
+```
+Next, we assess the global performance through ROC analysis. Since ROC analysis is usually used to compare two or more binary classification models, we will build two SVM models with linear and RBF kernels respectively, and the standard binary logistic regression models and then compare the three candidate classification models using ROC and AUC.
+
+```{r, warnings=FALSE}
+
+# Load necessary libraries
+library(e1071)  # For svm()
+library(pROC)   # For ROC curve
+library(MASS)   # For stepAIC()
+# Assuming the 'hearts_final' dataset is already loaded
+
+# Split the data into training (70%) and testing (30%) sets
+set.seed(123)  # For reproducibility
+index <- sample(1:nrow(hearts_final), 0.7 * nrow(hearts_final))
+train.data <- hearts_final[index, ]
+test.data <- hearts_final[-index, ]
+
+# Set up custom cross-validation control (5-fold cross-validation)
+tune.control <- tune.control(
+  cross = 5,  # 5-fold cross-validation
+  nrepeat = 1 # Number of repetitions (for repeated cross-validation)
+)
+
+## Linear SVM Grid Search for Best Hyperparameters
+tune.lin <- tune(
+  svm,              # SVM algorithm
+  TenYearCHD ~ .,   # Target variable is 'TenYearCHD'
+  data = train.data,
+  kernel = "linear", # Linear kernel
+  ranges = list(
+    cost = 10^(-1:2)   # Tuning hyperparameter 'C' in the loss function
+  ),
+  tunecontrol = tune.control  # Use custom cross-validation settings
+)
+
+# Extract the best model and hyperparameters for Linear SVM
+best.lin <- tune.lin$best.model
+best.cost.lin <- best.lin$cost
+
+# Train the final Linear SVM model with the best hyperparameters
+final.lin <- svm(
+  TenYearCHD ~ .,        # Target variable: 'TenYearCHD'
+  data = train.data,     # Training data
+  kernel = "linear",     # Linear kernel
+  cost = best.cost.lin,  # Best cost from tuning
+  probability = TRUE     # Request probability estimates
+)
+
+## Radial SVM Grid Search for Best Hyperparameters
+tune.RBF <- tune(
+  svm,              # SVM algorithm
+  TenYearCHD ~ .,   # Target variable is 'TenYearCHD'
+  data = train.data,
+  kernel = "radial", # Radial kernel
+  ranges = list(
+    cost = 10^(-1:2),  # Tuning hyperparameter 'C'
+    gamma = c(0.1, 0.5, 1, 2)  # Tuning 'gamma' for the radial kernel
+  ),
+  tunecontrol = tune.control  # Custom cross-validation settings
+)
+
+# Extract the best model and hyperparameters for Radial SVM
+best.RBF <- tune.RBF$best.model
+best.cost.RBF <- best.RBF$cost
+best.gamma.RBF <- best.RBF$gamma
+
+# Train the final Radial SVM model with the best hyperparameters
+final.RBF <- svm(
+  TenYearCHD ~ .,        # Target variable: 'TenYearCHD'
+  data = train.data,     # Training data
+  kernel = "radial",     # Radial kernel
+  cost = best.cost.RBF,  # Best cost from tuning
+  gamma = best.gamma.RBF,  # Best gamma from tuning
+  probability = TRUE     # Request probability estimates
+)
+
+######################
+### Logistic Regression Model
+logit.fit <- glm(TenYearCHD ~ ., data = train.data, family = binomial)
+AIC.logit <- step(logit.fit, direction = "both", trace = 0)  # Stepwise selection
+pred.logit <- predict(AIC.logit, test.data, type = "response")
+
+###################
+# ROC Curve and AUC for the models
+
+# Get the predicted probabilities for Linear SVM, Radial SVM, and Logistic Regression
+pred.prob.lin <- predict(final.lin, test.data, probability = TRUE)
+pred.prob.RBF <- predict(final.RBF, test.data, probability = TRUE)
+
+# Extracting the probabilities for the positive class
+prob.linear <- attr(pred.prob.lin, "probabilities")[, 2]
+prob.radial <- attr(pred.prob.RBF, "probabilities")[, 2]
+
+# Compute ROC curves
+roc_lin <- roc(test.data$TenYearCHD, prob.linear)
+roc_RBF <- roc(test.data$TenYearCHD, prob.radial)
+roc_logit <- roc(test.data$TenYearCHD, pred.logit)
+
+# Sensitivity and Specificity for each model
+lin.sen <- roc_lin$sensitivities
+lin.spe <- roc_lin$specificities
+rad.sen <- roc_RBF$sensitivities
+rad.spe <- roc_RBF$specificities
+logit.sen <- roc_logit$sensitivities
+logit.spe <- roc_logit$specificities
+
+# AUC values
+auc.lin <- roc_lin$auc
+auc.rad <- roc_RBF$auc
+auc.logit <- roc_logit$auc
+
+# Plot ROC curves
+plot(1 - lin.spe, lin.sen,  
+     xlab = "1 - Specificity",
+     ylab = "Sensitivity",
+     col = "darkred",
+     type = "l",
+     lty = 1,
+     lwd = 1,
+     main = "ROC Curves of SVM and Logistic Regression")
+lines(1 - rad.spe, rad.sen, 
+      col = "blue",
+      lty = 1,
+      lwd = 1)
+lines(1 - logit.spe, logit.sen,      
+      col = "orange",
+      lty = 1,
+      lwd = 1)
+
+# Add the diagonal line for random guessing
+abline(0, 1, col = "skyblue3", lty = 2, lwd = 2)
+
+# Add vertical lines for thresholds
+abline(v = c(0.049, 0.151), lty = 3, col = "darkgreen")
+
+# Legend for the plot
+legend("bottomright", c("Linear SVM", "Radial SVM", "Logistic Regression"),
+       lty = c(1, 1, 1), lwd = rep(1, 3),
+       col = c("red", "blue", "orange"),
+       bty = "n", cex = 0.8)
+
+# Annotate with AUC values
+text(0.8, 0.46, paste("Linear AUC: ", round(auc.lin, 4)), cex = 0.8)
+text(0.8, 0.4, paste("Radial AUC: ", round(auc.rad, 4)), cex = 0.8)
+text(0.8, 0.34, paste("Logistic AUC: ", round(auc.logit, 4)), cex = 0.8)
+
+
+```
+
+The ROC curve above indicates that the linear SVM, RBF SVM, and standard linear logistic regression models do not perform equally well on a global scale. However, one notable observation from the ROC curve is that the sensitivity of both the Radial and logistic regression models is consistently higher than that of the linear SVM when the specificity level is between 85% and 95%. For the question of classification, the best model to use is the logistic regression
+
+
+
+## Conclusion
+
+Overall in this project we have done some EDA with linear/logistical regularized regression, as well as utilizing SVMs to predict glucose levels and label if someone will have CHD in ten years. We have cross-validated these different models to see which one performed the best in order to answer these key questions.
+
+  
+
+
+
+
+
+
+
