@@ -1,0 +1,254 @@
+---
+title: 'Iranian Churn: A Comparative Analysis of Regularization and Support Vector Models for Customer Value and Churn Prediction'
+author: "Jessica Gorr"
+date: "4/16/2025"
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    number_sections: yes
+    toc_collapsed: yes
+    code_folding: hide
+    code_download: yes
+    smooth_scroll: yes
+    theme: lumen
+  word_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    keep_md: yes
+  pdf_document: 
+    toc: yes
+    toc_depth: 4
+    fig_caption: yes
+    number_sections: yes
+    fig_width: 3
+    fig_height: 3
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+```{=html}
+
+<style type="text/css">
+
+/* Cascading Style Sheets (CSS) is a stylesheet language used to describe the presentation of a document written in HTML or XML. it is a simple mechanism for adding style (e.g., fonts, colors, spacing) to Web documents. */
+
+h1.title {  /* Title - font specifications of the report title */
+  font-size: 24px;
+  color: DarkRed;
+  text-align: center;
+  font-family: "Gill Sans", sans-serif;
+  font-weight: bold;
+}
+h4.author { /* Header 4 - font specifications for authors  */
+  font-size: 20px;
+  font-family: system-ui;
+  color: DarkRed;
+  text-align: center;
+  font-weight: bold;
+}
+h4.date { /* Header 4 - font specifications for the date  */
+  font-size: 18px;
+  font-family: system-ui;
+  color: DarkBlue;
+  text-align: center;
+}
+h1 { /* Header 1 - font specifications for level 1 section title  */
+    font-size: 22px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: center;
+    font-weight: bold;
+}
+h2 { /* Header 2 - font specifications for level 2 section title */
+    font-size: 20px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+    font-weight: bold;
+}
+
+h3 { /* Header 3 - font specifications of level 3 section title  */
+    font-size: 18px;
+    font-family: "Times New Roman", Times, serif;
+    color: navy;
+    text-align: left;
+    font-weight: bold;
+}
+
+h4 { /* Header 4 - font specifications of level 4 section title  */
+    font-size: 16px;
+    font-family: "Times New Roman", Times, serif;
+    color: darkred;
+    text-align: left;
+    font-weight: bold;
+}
+
+body { background-color:white; }
+
+.highlightme { background-color:yellow; }
+
+p { background-color:white; }
+
+</style>
+```
+
+```{r setup, include=FALSE}
+# code chunk specifies whether the R code, warnings, and output 
+# will be included in the output files.
+
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+
+if (!require("MASS")) {
+   install.packages("MASS")
+   library(MASS)
+}
+if (!require("leaflet")) {
+   install.packages("leaflet")
+   library(leaflet)
+}
+
+if (!require("ggridges")) {
+   install.packages("ggridges")
+library(ggridges)
+}
+if (!require("tidyverse")) {
+   install.packages("tidyverse")
+library(tidyverse)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+if (!require("nnet")) {
+   install.packages("nnet")
+   library(nnet)
+}
+ 
+if (!require("nortest")) {
+   install.packages("nortest")
+   library(nortest)
+} 
+
+if (!require("corrplot")) {
+   install.packages("corrplot")
+   library(corrplot)
+}
+
+if (!require("VIM")) {
+   install.packages("VIM")
+   library(VIM)
+}
+
+
+if (!require("mice")) {
+   install.packages("mice")
+   library(mice)
+}
+
+if (!require("naniar")) {
+   install.packages("naniar")
+   library(naniar)
+
+}
+
+if (!require("GGally")) {
+   install.packages("GGally")
+   library(GGally)
+
+}
+
+if (!require("glmnet")) {
+   install.packages("glmnet")
+   library(glmnet)
+
+}
+
+if (!require("caret")) {
+   install.packages("caret")
+   library(caret)
+
+}
+
+if (!require("pROC")) {
+   install.packages("pROC")
+   library(pROC)
+
+}
+
+if (!require(vcd)) {
+  install.packages("vcd")
+}
+    library(vcd)
+
+if (!require(FactoMineR)) {
+  install.packages("FactoMineR")
+}
+    library(FactoMineR)
+
+if (!require(factoextra)) {
+  install.packages("factoextra")
+}
+    library(factoextra)
+
+
+if (!require(kableExtra)) {
+  install.packages("kableExtra")
+}
+    library(kableExtra)
+
+
+if (!require(kernlab)) {
+  install.packages("kernlab")
+}
+    library(kernlab)
+
+
+if (!require(e1071)) {
+  install.packages("e1071")
+}
+    library(e1071)
+
+if (!require(doParallel)) {
+  install.packages("doParallel")
+}
+    library(doParallel)
+
+
+
+
+
+knitr::opts_chunk$set(
+                      echo = TRUE,   
+                      warning = FALSE,  
+                      result = TRUE,    
+                      message = FALSE,
+                      comment = NA
+                      )  
+```
+
+
+data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",
+                 header = FALSE, strip.white = TRUE, na.strings = "?")
+                 
+```{r, warnings=FALSE}
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+
+#Load the sample data
+data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",
+                 header = FALSE, strip.white = TRUE, na.strings = "?")
+
+
+head(data)
+```
