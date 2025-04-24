@@ -159,6 +159,11 @@ if (!require("naniar")) {
 
 }
 
+if (!require("ipred")){
+  install.packages("ipred")
+  library(ipred)
+}
+
 if (!require("GGally")) {
    install.packages("GGally")
    library(GGally)
@@ -234,9 +239,45 @@ knitr::opts_chunk$set(
                       )  
 ```
 
+## Introduction
 
-data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",
-                 header = FALSE, strip.white = TRUE, na.strings = "?")
+The dataset used for this analysis was extracted by Barry Becker from the 1994 U.S. Census database. The dataset was filtered to include individuals who meet specific conditions: age over 16, annual income (AGI) greater than $100, family weight (AFNLWGT) greater than 1, and weekly hours worked (HRSWK) greater than 0. The primary goal is to predict whether an individual’s annual income exceeds $50,000 based on a set of features derived from their demographic, employment, and economic information.The datset contains 30162 obersvations across 15 features.
+
+Features in the dataset:
+The dataset contains a set of features that represent various aspects of each individual’s characteristics. These features are:
+
+AAGE: Age of the individual.
+
+AGI: Adjusted Gross Income, representing the total income before taxes.
+
+AFNLWGT: Family weight, a measure of the individual's family size or family support.
+
+HRSWK: Hours worked per week.
+
+EDUCA: Highest level of education achieved by the individual.
+
+MARITAL: Marital status (e.g., single, married, divorced).
+
+OCCUP: Occupation type (e.g., managerial, clerical, labor).
+
+RACE: Race of the individual.
+
+SEX: Gender of the individual.
+
+CAPGAIN: Capital gains income.
+
+CAPLOSS: Capital losses.
+
+HOURS: Number of hours worked in the past week.
+
+NATIVITY: Whether the individual is native-born or foreign-born.
+
+INCOME: A binary variable indicating whether the individual's income is over $50,000 (1 = Yes, 0 = No).
+
+These features collectively provide insights into an individual’s socio-economic background, employment status, and other demographic factors, which can be used to predict the likelihood of earning an income above $50,000.
+
+This report explores the use of Classification and Regression Trees (CART), Bagging, and Random Forests to predict whether an individual's income exceeds $50K per year based on the Adult Income dataset. We examine performance through cross-validation, pruning, variable importance, and comparison with classical models such as logistic regression. Ensemble methods demonstrate superior accuracy and robustness in prediction.
+
                  
 ```{r, warnings=FALSE}
 library(dplyr)
@@ -244,11 +285,229 @@ library(reshape2)
 library(tidyr)
 library(ggplot2)
 library(tibble)
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(e1071)
+library(pROC)
+#Load the sample adult
+adult = read.csv("https://jessgorr01.github.io/STA551/sta552/project3/adult.csv")
 
-#Load the sample data
-data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",
-                 header = FALSE, strip.white = TRUE, na.strings = "?")
 
+colnames(adult) <- c("age", "workclass", "fnlwgt", "education", "education_num",
+                    "marital_status", "occupation", "relationship", "race", "sex",
+                    "capital_gain", "capital_loss", "hours_per_week", "native_country", "income")
 
-head(data)
+adult <- na.omit(adult)
+adult$income <- as.factor(adult$income)
+
+# Split into training and testing adultsets
+set.seed(123)
+
+# Create a random index for the split (80% for training, 20% for testing)
+sample_index <- sample(1:nrow(adult), size = 0.8 * nrow(adult))
+
+# Split the adult
+train <- adult[sample_index, ]
+test <- adult[-sample_index, ]
+
+head(adult)
 ```
+
+## Exploratory adult Analysis and Feature Engineering
+
+Before building our predictive models, we nned to explore the adultset to better understand the feature distributions, identify patterns, and check for adult quality issues.  Summary statistics, histograms, and bar plots for numerical and categorical variables will be used.
+
+First we will explore the dataset structure and visualize variable distributions.
+
+```{r EDA}
+summary(adult)
+adult %>% group_by(income) %>% summarise(count = n())
+ggplot(adult, aes(x=age, fill=income)) + geom_histogram(bins=30, position="dodge")
+ggplot(adult, aes(x=education, fill=income)) + geom_bar()  + theme(axis.text.x = element_text(angle=45, hjust=1))
+ggplot(adult, aes(x = income)) +
+  geom_bar(fill = "steelblue") +
+  theme_minimal() +
+  labs(title = "Income Class Distribution", x = "Income", y = "Count")
+ggplot(adult, aes(x = age, fill = income)) +
+  geom_histogram(binwidth = 5, position = "dodge") +
+  theme_minimal() +
+  labs(title = "Age Distribution by Income", x = "Age", y = "Count")
+```
+
+The EDA shows that a smaller portion of individuals earn more than $50K, with age and education level appearing correlated with income. Males are more likely than females to earn over $50K. These insights inform feature importance and guide modeling decisions.
+
+Now a corplot will be used to determine if any of the features are strong predictors with income.
+We apply correlation and importance plots to identify significant predictors.
+
+```{r featselect}
+corr_data <- adult %>% select_if(is.numeric)
+corrplot(cor(corr_data), method = "circle")
+
+```
+From the corrplot, we can see that hours_per_week and education_num seem to be correlated. Capital_gain and education_num also seem to have some correlation. This means that education_num is most likely a good predictor of income and should be in the model.
+
+## Feature Engineering
+
+Before modeling, we need derive and clean variables to ensure optimal model performance. This can be seen below
+
+```{r feateng}
+adult$capital_diff <- adult$capital_gain - adult$capital_loss
+adult <- adult %>% select(-capital_gain, -capital_loss)
+adult <- adult %>% mutate_if(is.character, as.factor)
+```
+
+Now we will prepare the data by setting categorical variables as factors and scaling numeric variables.This will ensure that all features are on a comparable scale, which can improve our model performance.
+
+The following features will be converted to factors below:
+workclass, education, marital_status, occupation, relationship, race, sex, native_country
+
+The continuous variables: age, fnlwgt, education_num, capital_gain, capital_loss, and hours_per_week wil be scaled as well
+
+```{r, waringings=FALSE}
+# Convert categorical variables to factors
+train$workclass <- factor(train$workclass)
+train$education <- factor(train$education)
+train$marital_status <- factor(train$marital_status)
+train$occupation <- factor(train$occupation)
+train$relationship <- factor(train$relationship)
+train$race <- factor(train$race)
+train$sex <- factor(train$sex)
+train$native_country <- factor(train$native_country)
+
+test$workclass <- factor(test$workclass)
+test$education <- factor(test$education)
+test$marital_status <- factor(test$marital_status)
+test$occupation <- factor(test$occupation)
+test$relationship <- factor(test$relationship)
+test$race <- factor(test$race)
+test$sex <- factor(test$sex)
+test$native_country <- factor(test$native_country)
+
+# Scale numeric columns
+num_vars <- c("age", "fnlwgt", "education_num", "capital_gain", "capital_loss", "hours_per_week")
+train[num_vars] <- scale(train[num_vars])
+
+```
+
+### Feature Selection
+
+Feature selection helps to improve model accuracy and interpretability by removing redundant or irrelevant features.We will use a method to select the most important features: Random Forest variable importance. This will help us identify which features contribute the most to the target variable and allow us to build a more efficient model.
+
+
+
+### Random Forest Variable Importance
+Random Forest provides an importance score for each feature, which helps to identify which features are the most useful for predicting the target variable. We will train a Random Forest model and use it to rank feature importance.
+```{r}
+# Train random forest model for feature importance
+rf_model <- randomForest(income ~ ., data = train, ntree = 100, importance = TRUE)
+
+# Get variable importance
+importance(rf_model)
+
+# Plot variable importance
+varImpPlot(rf_model)
+```
+
+The plot shows feature importance based on Mean Decrease Gini and Accuracy. Features like education_num, marital_status, and hours_per_week show high predictive power.
+
+## CART Classification
+
+We implement and evaluate a classification tree.
+
+```{r cart_class}
+
+cart_model <- rpart(income ~ ., data = train, method = "class", cp = 0.01)
+rpart.plot(cart_model)
+printcp(cart_model)
+
+# Prune based on optimal cp
+opt_cp <- cart_model$cptable[which.min(cart_model$cptable[, "xerror"]), "CP"]
+cart_pruned <- prune(cart_model, cp = opt_cp)
+
+pred_cart <- predict(cart_pruned, newdata = test, type = "class")
+confusionMatrix(pred_cart, test$income)
+```
+
+The CART classification model demonstrates strong overall performance, achieving an accuracy of 81.8% with a 95% confidence interval ranging from 80.8% to 82.8%. It significantly outperforms the No Information Rate (74.8%), indicating that it provides meaningful predictions beyond simply guessing the most frequent class. The model shows high sensitivity (91.3%) for predicting individuals earning ≤50K, but lower specificity (53.6%) for identifying those earning >50K, suggesting it performs better with the majority class. Overall, the CART model is effective, particularly for the lower income group, though further refinement or alternative modeling approaches may improve classification of higher income individuals.
+ 
+ 
+## Logistic Regression
+Here, we will train a logistic regression model using the training data, evaluate its performance, and compare it against more complex models like CART and Random Forest.
+```{r}
+log_model <- glm(income ~ ., data = train, family = "binomial")
+pred_log <- predict(log_model, test, type = "response")
+log_class <- ifelse(pred_log > 0.5, ">50K", "<=50K")
+confusionMatrix(factor(log_class, levels = levels(test$income)), test$income)
+```
+The logistic regression model performed poorly, achieving an overall accuracy of only 25.2%, which is significantly lower than the No Information Rate of 74.8%. This suggests the model failed to learn any meaningful patterns from the data. It predicted all instances as the >50K class, completely missing the majority class (<=50K), resulting in a sensitivity of 0.0% and a specificity of 100%.  
+
+Compared to more complex models like CART and Random Forest, logistic regression underperformed drastically, highlighting itS limitations in capturing nonlinear relationships or interactions in the data. 
+
+## Bagging
+We will implement bagging using ipred::bagging() to reduce model variance. Bagging reduces variance by aggregating predictions from multiple bootstrap samples. This improves accuracy over a single CART.
+```{r bagging}
+set.seed(123)
+bag_model <- bagging(income ~ ., data = train, nbagg = 50)
+bag_pred <- predict(bag_model, test)
+confusionMatrix(bag_pred, test$income)
+```
+
+The bagging model achieved an overall accuracy of 76.3%, which is slightly above the No Information Rate of 74.8%, and statistically significant with a p-value of 0.0026. The model shows high sensitivity (85.3%) in correctly identifying individuals earning ≤50K, but lower specificity (49.8%) for detecting those earning >50K. While bagging improves on the logistic regression model and performs comparably to CART, it still shows a bias toward the majority class. 
+
+
+## Random Forest
+Now we will apply a Random Forest, which adds random feature selection on top of bagging.
+
+```{r}
+library(randomForest)
+library(caret)
+
+set.seed(123)
+rf_model_final <- randomForest(income ~ ., data = train, ntree = 200, mtry = 5, importance = TRUE)
+
+# Ensure factor levels match between train and test
+for (col in names(train)) {
+  if (is.factor(train[[col]])) {
+    test[[col]] <- factor(test[[col]], levels = levels(train[[col]]))
+  }
+}
+
+# Predict and evaluate
+rf_pred <- predict(rf_model_final, test)
+conf_mat <- confusionMatrix(rf_pred, test$income)
+print(conf_mat)
+
+# Plot variable importance
+varImpPlot(rf_model_final)
+
+```
+
+The random forest model delivered a strong performance, achieving an overall accuracy of 77.2%, which is significantly higher than the No Information Rate of 74.8%. The model demonstrates high sensitivity (82.7%) in correctly identifying individuals earning ≤50K and improved specificity (60.8%) for the >50K class compared to previous models. Overall, the random forest outperforms logistic regression, CART, and bagging, providing a more balanced and robust classification across both income categories.
+
+## Model Comparison
+Here, we compare the performance of all models using accuracy and other metrics.
+
+
+```{r compare}
+# Extract accuracy from the confusion matrices
+acc_cart <- as.numeric(confusionMatrix(pred_cart, test$income)$overall['Accuracy'])
+acc_log <- as.numeric(confusionMatrix(factor(log_class, levels = levels(test$income)), test$income)$overall['Accuracy'])
+acc_bag <- as.numeric(confusionMatrix(bag_pred, test$income)$overall['Accuracy'])
+acc_rf <- as.numeric(confusionMatrix(rf_pred, test$income)$overall['Accuracy'])
+
+# Print accuracy values to ensure they are valid
+print(acc_cart)
+print(acc_log)
+print(acc_bag)
+print(acc_rf)
+
+
+```
+
+From the output, the most accurate model is the cart classification, followed by the random forest model. The least accurate model was the logistical regression model, indicating it was underfitting and not suitable for more complex problems.
+
+
+## Conclustion
+This analysis demonstrates the effectiveness of ensemble tree-based methods in classification problems with both numerical and categorical features. The cart model was proven to be the most accurate. The use of feature importance helped simplify and improve model interpretability. Ensemble methods should be preferred when accuracy and robustness are priorities.
